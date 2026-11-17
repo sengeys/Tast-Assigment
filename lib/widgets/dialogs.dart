@@ -1,5 +1,5 @@
 // Dialog និង SnackBar ដែលប្រើរួមគ្នា
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void showSnack(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -51,7 +51,7 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
                 return DropdownButtonFormField<String>(
                   value: roleValue,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'តួនាទី / ជំនាញ'),
+                  decoration: const InputDecoration(labelText: 'តួនាទី'),
                   items: [
                     const DropdownMenuItem(
                         value: '',
@@ -65,7 +65,7 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
             TextField(
                 controller: a,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'អាយុ (ឆ្នាំ)')),
+                decoration: const InputDecoration(labelText: 'វស្សា')),
             TextField(
                 controller: p,
                 keyboardType: TextInputType.phone,

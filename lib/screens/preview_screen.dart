@@ -1,7 +1,6 @@
 // អេក្រង់មើលសារ និង Copy
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
-
 import '../state/app_state.dart';
 
 // ---------------- 4. Preview & Copy ----------------

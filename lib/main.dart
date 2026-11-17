@@ -1,5 +1,5 @@
 // ចំណុចចាប់ផ្តើមនៃ App
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'state/app_state.dart';
@@ -25,7 +25,7 @@ class TaskApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ចាត់តាំងការងារ',
+      title: 'កម្មវិធីចាត់ព្រះសង្ឃទៅបុណ្យ',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
       home: const HomeScreen(),

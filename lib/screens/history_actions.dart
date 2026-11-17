@@ -1,5 +1,5 @@
 // មុខងាររួមសម្រាប់ប្រវត្តិការចាត់តាំង: ពិនិត្យផុតម៉ោង, Copy, កែ, លុប
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../core/khmer.dart';
