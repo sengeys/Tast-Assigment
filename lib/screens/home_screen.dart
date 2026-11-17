@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final s = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ប្រវត្តិការចាត់តាំង'),
+        title: const Text('ប្រវត្តិការទៅបុណ្យ'),
         actions: [
           IconButton(
             icon: const Icon(Icons.bar_chart),
@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.assignment),
-            tooltip: 'គំរូការងារ',
+            tooltip: 'គំរូការការទៅបុណ្យ',
             onPressed: () => Navigator.push(
                 context, MaterialPageRoute(builder: (_) => const TemplatesScreen())),
           ),
@@ -64,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: s.history.isEmpty
-          ? const Center(child: Text('មិនទាន់មានប្រវត្តិ ចុច «ចាត់តាំងថ្មី» ដើម្បីចាប់ផ្តើម'))
+          ? const Center(child: Text('មិនទាន់មានប្រវត្តិ ចុច «ចាត់ទៅបុណ្យថ្មី» ដើម្បីចាប់ផ្តើម'))
           : ListView.separated(
               padding: const EdgeInsets.only(bottom: 88),
               itemCount: s.history.length,
@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
-        label: const Text('ចាត់តាំងថ្មី'),
+        label: const Text('ចាត់ទៅបុណ្យថ្មី'),
         onPressed: () => Navigator.push(
             context, MaterialPageRoute(builder: (_) => const TemplatesScreen())),
       ),

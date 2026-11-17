@@ -17,13 +17,13 @@ class DetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     return Scaffold(
-      appBar: AppBar(title: const Text('ពេលវេលា និងទីតាំង')),
+      appBar: AppBar(title: const Text('ពេលវេលា និង ទីតាំង')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           TextFormField(
             initialValue: s.title,
-            decoration: const InputDecoration(labelText: 'ឈ្មោះការងារ', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'ឈ្មោះបុណ្យ', border: OutlineInputBorder()),
             onChanged: (v) => s.title = v,
           ),
           const SizedBox(height: 12),
@@ -54,8 +54,8 @@ class DetailsScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: s.leaders.any((l) => l['id'] == s.leaderId) ? s.leaderId : null,
-                  decoration: const InputDecoration(labelText: 'អ្នកដឹកនាំ', border: OutlineInputBorder()),
+                  initialValue: s.leaders.any((l) => l['id'] == s.leaderId) ? s.leaderId : null,
+                  decoration: const InputDecoration(labelText: 'អាចារ្យ', border: OutlineInputBorder()),
                   items: [
                     for (final l in s.leaders)
                       DropdownMenuItem(value: l['id'] as int, child: Text(l['name'])),
@@ -66,7 +66,7 @@ class DetailsScreen extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.add_circle_outline),
                 onPressed: () async {
-                  final n = await askText(context, 'អ្នកដឹកនាំថ្មី');
+                  final n = await askText(context, 'អាចារ្យថ្មី');
                   if (n == null || n.isEmpty) return;
                   final id = await Db.insert('leaders', {'name': n});
                   await s.load();
@@ -80,7 +80,7 @@ class DetailsScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: s.places.any((x) => x['name'] == s.place) ? s.place : null,
+                  initialValue: s.places.any((x) => x['name'] == s.place) ? s.place : null,
                   decoration: const InputDecoration(labelText: 'ទីតាំង', border: OutlineInputBorder()),
                   items: [
                     for (final x in s.places)
@@ -108,7 +108,7 @@ class DetailsScreen extends StatelessWidget {
             maxLines: null,
             decoration: const InputDecoration(
                 labelText: 'បញ្ជាក់ (មិនចាំបាច់)',
-                hintText: 'ឧ. យកប៉ែលចូកដីទៅផង',
+                hintText: 'ឧ. យកបាត្រ និង ស្រាក់...',
                 border: OutlineInputBorder()),
             onChanged: (v) => s.note = v,
           ),
@@ -159,10 +159,10 @@ class DetailsScreen extends StatelessWidget {
         context: context,
         builder: (_) => AlertDialog(
           icon: const Icon(Icons.warning_amber, color: Colors.orange),
-          title: const Text('បុគ្គលិកជាន់ពេលគ្នា'),
+          title: const Text('ព្រះសង្ឃជាន់ពេលគ្នា'),
           content: SingleChildScrollView(
             child: Text([
-              'បុគ្គលិកខាងក្រោមមានការងារផ្សេងនៅថ្ងៃនេះរួចហើយ៖',
+              'ព្រះសង្ឃខាងក្រោមមានបុណ្យផ្សេងនៅថ្ងៃនេះរួចហើយ៖',
               '',
               for (final c in conflicts) '• ${c['staff_name']} — ${c['title']} (${range(c)})',
             ].join('\n')),
@@ -172,7 +172,7 @@ class DetailsScreen extends StatelessWidget {
                 onPressed: () => Navigator.pop(context, false), child: const Text('កែម៉ោង')),
             FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('ជ្រើសបុគ្គលិកថ្មី')),
+                child: const Text('ជ្រើសព្រះសង្ឃថ្មី')),
           ],
         ),
       );

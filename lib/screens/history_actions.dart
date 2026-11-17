@@ -57,7 +57,7 @@ Future<bool> deleteHistoryConfirm(BuildContext context, AppState s, Map<String, 
     context: context,
     builder: (_) => AlertDialog(
       title: Text('លុប "${h['title']}" ?'),
-      content: const Text('ការចាត់តាំងនេះនឹងត្រូវលុបចេញពីប្រវត្តិ និងស្ថិតិ។'),
+      content: const Text('ការចាត់ទៅបុណ្យនេះនឹងត្រូវលុបចេញពីប្រវត្តិ និងស្ថិតិ។'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('បោះបង់')),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('លុប')),

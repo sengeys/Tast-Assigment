@@ -125,10 +125,26 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  
+  
+String lengthOfTitle() {
+  final names = selectedNames;
+
+  String middleText = ' ⋆⋅𖤓⋅⋆ ';
+  
+  String sideText = '─' * (names.length - 2);
+  String combinedText = sideText + middleText + sideText;
+
+  return combinedText;
+}
+
+
+
   String buildMessage() {
     final names = selectedNames;
     final b = StringBuffer()
-      ..writeln('᯽ $title ${kh(names.length)} នាក់ ᯽')
+      ..writeln('᯽⋆⊱ $title ${kh(names.length)} អង្គ ⊰⋆᯽')
+      ..writeln(lengthOfTitle())
       ..writeln();
     for (var i = 0; i < names.length; i++) {
       b
@@ -136,37 +152,38 @@ class AppState extends ChangeNotifier {
         ..writeln();
     }
     if (start != null) {
-      final t = end != null ? '${khTime(start!)} - ${khTime(end!)}' : khTime(start!);
+      final t = khTime(start!);
       b
-        ..writeln('==> ( ម៉ោង $t )')
+        ..writeln(lengthOfTitle())
+        ..writeln('⏰ ( ម៉ោង : $t )')
         ..writeln();
     }
     if (leaderName != null) {
       b
-        ..writeln('==> អ្នកដឹកនាំទៅ ( $leaderName )')
+        ..writeln('👨‍🦳 អាចារ្យ : ( $leaderName )')
         ..writeln();
     }
     if (place != null && place!.isNotEmpty) {
       b
-        ..writeln('==> ទីតាំង ( $place )')
+        ..writeln('📍 ទីតាំង : ( $place )')
         ..writeln();
     }
     if (note.trim().isNotEmpty) {
       b
-        ..writeln('==> បញ្ជាក់: ${note.trim()}')
+        ..writeln('✏️ បញ្ជាក់: ${note.trim()}')
         ..writeln();
     }
     b
-      ..writeln('==> ( ${khDateFull(date)} )')
+      ..writeln('🗓 ( ${khDateFull(date)} )')
       ..writeln()
-      ..write('-------------❀❀❀❀-------------');
+      ..write('───⋆⊱༻𖥸༺⊰⋆───');
     return b.toString();
   }
 
   int _min(TimeOfDay t) => t.hour * 60 + t.minute;
   String get _dateStr => DateFormat('yyyy-MM-dd').format(date);
 
-  /// រកបុគ្គលិកដែលបានជ្រើស ដែលមានការងារផ្សេងជាន់ម៉ោងនៅថ្ងៃដូចគ្នា
+  /// រកព្រះសង្ឃដែលបានជ្រើស ដែលមានបុណ្យផ្សេងជាន់ម៉ោងនៅថ្ងៃដូចគ្នា
   Future<List<Map<String, dynamic>>> findConflicts() async {
     if (start == null || end == null || selected.isEmpty) return [];
     final db = await Db.instance;
@@ -182,7 +199,7 @@ class AppState extends ChangeNotifier {
     return rows.where((r) => a < (r['end_min'] as int) && (r['start_min'] as int) < b).toList();
   }
 
-  /// return false បើមានការជាន់ម៉ោង (មិនរក្សាទុក)
+  /// return false បើមានបុណ្យជាន់ម៉ោង (មិនរក្សាទុក)
   Future<bool> copyAndSave() async {
     if ((await findConflicts()).isNotEmpty) return false;
     final msg = buildMessage();

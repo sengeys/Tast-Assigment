@@ -18,7 +18,7 @@ class HistoryDetailScreen extends StatelessWidget {
     if (matches.isEmpty) {
       return Scaffold(
           appBar: AppBar(title: const Text('ព័ត៌មានលម្អិត')),
-          body: const Center(child: Text('ការចាត់តាំងនេះត្រូវបានលុបហើយ')));
+          body: const Center(child: Text('ការចាត់ទៅបុណ្យនេះត្រូវបានលុបហើយ')));
     }
     final h = matches.first;
     final ended = historyEnded(h);
@@ -57,19 +57,20 @@ class HistoryDetailScreen extends StatelessWidget {
         children: [
           if (ended)
             Container(
-              color: Colors.grey.shade200,
+              color: Colors.redAccent.shade100,
               padding: const EdgeInsets.all(12),
-              child: const Text('ការងារនេះផុតម៉ោងហើយ — កែ ឬលុបបានតែនៅទំព័រនេះប៉ុណ្ណោះ'),
+              child: const Text('ព្រះសង្ឃដែលបានទៅបុណ្យនេះផុតម៉ោងហើយ — កែ ឬលុបបានតែនៅទំព័រនេះប៉ុណ្ណោះ', 
+                  style: TextStyle(fontSize: 14, color: Colors.black87)),
             ),
           row(Icons.calendar_today, 'កាលបរិច្ឆេទ', historyDateFullText(h)),
           row(Icons.access_time, 'ម៉ោង', time),
-          row(Icons.person, 'អ្នកដឹកនាំ', (h['leader'] ?? '').toString()),
+          row(Icons.person, 'អាចារ្យ', (h['leader'] ?? '').toString()),
           row(Icons.place, 'ទីតាំង', (h['place'] ?? '').toString()),
           row(Icons.info_outline, 'បញ្ជាក់', (h['note'] ?? '').toString()),
           ListTile(
             dense: true,
             leading: const Icon(Icons.groups),
-            title: Text('បុគ្គលិក (${kh(names.length)} នាក់)',
+            title: Text('ព្រះសង្ឃ (${kh(names.length)} អង្គ)',
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
             subtitle: Text(
               [for (var i = 0; i < names.length; i++) '${kh(i + 1)}. ${names[i]}'].join('\n'),
