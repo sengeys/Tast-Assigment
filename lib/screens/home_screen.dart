@@ -1,7 +1,7 @@
 // អេក្រង់ដើម: ប្រវត្តិការចាត់តាំង
 import 'dart:async';
 
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';

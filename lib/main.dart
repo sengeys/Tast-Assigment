@@ -1,5 +1,5 @@
 // ចំណុចចាប់ផ្តើមនៃ App
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'state/app_state.dart';
@@ -27,7 +27,11 @@ class TaskApp extends StatelessWidget {
     return MaterialApp(
       title: 'កម្មវិធីចាត់ព្រះសង្ឃទៅបុណ្យ',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+      theme: ThemeData(
+        colorSchemeSeed: Colors.teal, 
+        useMaterial3: true,
+        fontFamily: 'NotoSansKhmer',
+      ),
       home: const HomeScreen(),
     );
   }

@@ -1,5 +1,5 @@
 // អេក្រង់គ្រប់គ្រងទិន្នន័យ: បុគ្គលិក អ្នកដឹកនាំ ទីតាំង
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
