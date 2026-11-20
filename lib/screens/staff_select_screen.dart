@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
+import '../core/roles.dart';
 import '../data/db.dart';
 import '../state/app_state.dart';
 import '../widgets/dialogs.dart';
@@ -35,14 +36,17 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text('ជ្រើសរើសបុគ្គលិក (${kh(s.selected.length)})')),
+      appBar:
+          AppBar(title: Text('ជ្រើសរើសព្រះសង្ឃ (${kh(s.selected.length)})')),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: TextField(
               decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search), hintText: 'ស្វែងរកឈ្មោះ', border: OutlineInputBorder()),
+                  prefixIcon: Icon(Icons.search),
+                  hintText: 'ស្វែងរកឈ្មោះ',
+                  border: OutlineInputBorder()),
               onChanged: (v) => setState(() => query = v),
             ),
           ),
@@ -100,10 +104,24 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
             heroTag: 'add',
             child: const Icon(Icons.person_add),
             onPressed: () async {
-              final name = await askText(context, 'ឈ្មោះបុគ្គលិកថ្មី');
-              if (name == null || name.isEmpty) return;
-              await Db.insert('staff', {'name': name, 'role': roleFilter ?? '', 'phone': ''});
-              s.load();
+              final value = await recordDialog(
+                context,
+                'បន្ថែមព្រះសង្ឃថ្មី',
+                role: roleFilter ?? '',
+                roleOptions: [
+                  ...roleOrder,
+                  ...s.roles.where((role) => !roleOrder.contains(role)),
+                ],
+                isStaff: true,
+                includeAgeAndPhone: false,
+              );
+              if (value == null) return;
+              await Db.insert('staff', {
+                'name': value['name'],
+                'role': value['role'],
+                'phone': '',
+              });
+              await s.load();
             },
           ),
           const SizedBox(height: 8),
@@ -113,8 +131,8 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
             label: const Text('បន្ទាប់'),
             onPressed: s.selected.isEmpty
                 ? null
-                : () => Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => const DetailsScreen())),
+                : () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const DetailsScreen())),
           ),
         ],
       ),

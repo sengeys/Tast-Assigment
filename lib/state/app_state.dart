@@ -7,9 +7,14 @@ import '../core/khmer.dart';
 import '../core/khmer_lunar.dart';
 import '../core/roles.dart';
 import '../data/db.dart';
+import '../services/notification_service.dart';
 
 class AppState extends ChangeNotifier {
-  List<Map<String, dynamic>> staff = [], leaders = [], templates = [], places = [], history = [];
+  List<Map<String, dynamic>> staff = [],
+      leaders = [],
+      templates = [],
+      places = [],
+      history = [];
 
   // current task draft
   Map<String, dynamic>? template;
@@ -26,7 +31,8 @@ class AppState extends ChangeNotifier {
     leaders = await Db.all('leaders');
     templates = await Db.all('templates');
     places = await Db.all('places');
-    history = await Db.all('task_history', orderBy: 'task_date DESC, start_min DESC, id DESC');
+    history = await Db.all('task_history',
+        orderBy: 'task_date DESC, start_min DESC, id DESC');
     notifyListeners();
   }
 
@@ -35,7 +41,8 @@ class AppState extends ChangeNotifier {
   /// ផ្ទុកទិន្នន័យការចាត់តាំងចាស់ ចូលក្នុង Form ដើម្បីកែប្រែ
   Future<void> startEdit(Map<String, dynamic> h) async {
     final db = await Db.instance;
-    final rows = await db.query('task_staff', where: 'history_id = ?', whereArgs: [h['id']]);
+    final rows = await db
+        .query('task_staff', where: 'history_id = ?', whereArgs: [h['id']]);
     editingId = h['id'] as int;
     template = null;
     title = (h['title'] ?? '').toString();
@@ -43,7 +50,8 @@ class AppState extends ChangeNotifier {
     selected
       ..clear()
       ..addAll(rows.map((r) => r['staff_id']).whereType<int>());
-    date = DateTime.tryParse((h['task_date'] ?? '').toString()) ?? DateTime.now();
+    date =
+        DateTime.tryParse((h['task_date'] ?? '').toString()) ?? DateTime.now();
     TimeOfDay? t(Object? m) =>
         m == null ? null : TimeOfDay(hour: (m as int) ~/ 60, minute: m % 60);
     start = t(h['start_min']);
@@ -79,7 +87,9 @@ class AppState extends ChangeNotifier {
         .map((x) => (x['role'] ?? '').toString())
         .where((r) => r.isNotEmpty)
         .toSet();
-    final role = roleSet.length == 1 ? roleSet.first : (template?['role'] ?? '').toString();
+    final role = roleSet.length == 1
+        ? roleSet.first
+        : (template?['role'] ?? '').toString();
     await Db.insert('templates', {
       'title': name,
       'role': role,
@@ -105,8 +115,10 @@ class AppState extends ChangeNotifier {
     return r;
   }
 
-  List<String> get selectedNames =>
-      staff.where((s) => selected.contains(s['id'])).map((s) => s['name'] as String).toList();
+  List<String> get selectedNames => staff
+      .where((s) => selected.contains(s['id']))
+      .map((s) => s['name'] as String)
+      .toList();
 
   String? get leaderName {
     for (final l in leaders) {
@@ -125,30 +137,28 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  
-  
-String lengthOfTitle() {
-  final names = selectedNames;
+  String lengthOfTitle() {
+    final names = selectedNames;
 
-  String middleText = ' ⋆⋅𖤓⋅⋆ ';
-  
-  String sideText = '─' * (names.length - 2);
-  String combinedText = sideText + middleText + sideText;
+    String middleText = ' ⋆⋅𖤓⋅⋆ ';
 
-  return combinedText;
-}
+    String sideText = '─' * (names.length - 2);
+    String combinedText = sideText + middleText + sideText;
 
-
+    return combinedText;
+  }
 
   String buildMessage() {
-    final names = selectedNames;
+    final selectedStaff =
+        staff.where((s) => selected.contains(s['id'])).toList();
+    final names = selectedStaff.map((s) => s['name'] as String).toList();
     final b = StringBuffer()
       ..writeln('᯽⋆⊱ $title ${kh(names.length)} អង្គ ⊰⋆᯽')
       ..writeln(lengthOfTitle())
       ..writeln();
     for (var i = 0; i < names.length; i++) {
       b
-        ..writeln('${kh(i + 1)}. ${names[i]}')
+        ..writeln('${kh(i + 1)}. ${formatStaffName(selectedStaff[i])}')
         ..writeln();
     }
     if (start != null) {
@@ -196,7 +206,9 @@ String lengthOfTitle() {
         'AND ts.start_min IS NOT NULL AND ts.end_min IS NOT NULL',
         [_dateStr, editingId ?? -1, ...ids]);
     final a = _min(start!), b = _min(end!);
-    return rows.where((r) => a < (r['end_min'] as int) && (r['start_min'] as int) < b).toList();
+    return rows
+        .where((r) => a < (r['end_min'] as int) && (r['start_min'] as int) < b)
+        .toList();
   }
 
   /// return false បើមានបុណ្យជាន់ម៉ោង (មិនរក្សាទុក)
@@ -220,7 +232,8 @@ String lengthOfTitle() {
     };
     final int hid;
     if (editingId == null) {
-      hid = await db.insert('task_history', {...row, 'created_at': DateTime.now().toIso8601String()});
+      hid = await db.insert('task_history',
+          {...row, 'created_at': DateTime.now().toIso8601String()});
     } else {
       hid = editingId!;
       await db.update('task_history', row, where: 'id = ?', whereArgs: [hid]);
@@ -238,6 +251,7 @@ String lengthOfTitle() {
       });
     }
     await load();
+    await NotificationService.instance.rescheduleAll();
     return true;
   }
 }

@@ -11,11 +11,17 @@ Future<String?> askText(BuildContext context, String title,
     context: context,
     builder: (_) => AlertDialog(
       title: Text(title),
-      content: TextField(controller: c, autofocus: true, decoration: InputDecoration(hintText: hint)),
+      content: TextField(
+          controller: c,
+          autofocus: true,
+          decoration: InputDecoration(hintText: hint)),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('បោះបង់')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('បោះបង់')),
         FilledButton(
-            onPressed: () => Navigator.pop(context, c.text.trim()), child: const Text('រក្សាទុក')),
+            onPressed: () => Navigator.pop(context, c.text.trim()),
+            child: const Text('រក្សាទុក')),
       ],
     ),
   );
@@ -28,7 +34,8 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
     String phone = '',
     String age = '',
     List<String> roleOptions = const [],
-    bool isStaff = false}) {
+    bool isStaff = false,
+    bool includeAgeAndPhone = true}) {
   final n = TextEditingController(text: name);
   String roleValue = role; // '' = មិនទាន់ជ្រើសរើស
   final p = TextEditingController(text: phone);
@@ -42,44 +49,59 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
           TextField(
               controller: n,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'ឈ្មោះ')),
+              decoration: const InputDecoration(
+                  labelText: 'ឈ្មោះ', border: OutlineInputBorder())),
+          SizedBox(height: 12),
           if (isStaff) ...[
             StatefulBuilder(
               builder: (ctx, setSt) {
                 // បញ្ចូលតម្លៃបច្ចុប្បន្នផង ដើម្បីកុំឱ្យតួនាទីចាស់ (ក្រៅបញ្ជី) បាត់
-                final items = <String>{...roleOptions, if (roleValue.isNotEmpty) roleValue}.toList();
+                final items = <String>{
+                  ...roleOptions,
+                  if (roleValue.isNotEmpty) roleValue
+                }.toList();
                 return DropdownButtonFormField<String>(
                   value: roleValue,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'តួនាទី'),
+                  decoration: const InputDecoration(
+                      labelText: 'តួនាទី', border: OutlineInputBorder()),
                   items: [
                     const DropdownMenuItem(
                         value: '',
-                        child: Text('ជ្រើសរើសតួនាទី...', style: TextStyle(color: Colors.grey))),
-                    for (final x in items) DropdownMenuItem(value: x, child: Text(x)),
+                        child: Text('ជ្រើសរើសតួនាទី...',
+                            style: TextStyle(color: Colors.grey))),
+                    for (final x in items)
+                      DropdownMenuItem(value: x, child: Text(x)),
                   ],
                   onChanged: (v) => setSt(() => roleValue = v ?? ''),
                 );
               },
             ),
-            TextField(
-                controller: a,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'វស្សា')),
-            TextField(
-                controller: p,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'លេខទូរស័ព្ទ')),
+            const SizedBox(height: 12),
+            if (includeAgeAndPhone) ...[
+              TextField(
+                  controller: a,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'វស្សា', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: p,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                      labelText: 'លេខទូរស័ព្ទ', border: OutlineInputBorder())),
+            ],
           ],
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('បោះបង់')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('បោះបង់')),
         FilledButton(
           onPressed: () {
             if (n.text.trim().isEmpty) return;
-            Navigator.pop(
-                context, {
+            Navigator.pop(context, {
               'name': n.text.trim(),
               'role': roleValue,
               'phone': p.text.trim(),

@@ -9,6 +9,7 @@ import '../state/app_state.dart';
 import 'history_actions.dart';
 import 'history_detail_screen.dart';
 import 'manage_screen.dart';
+import 'notification_settings_screen.dart';
 import 'stats_screen.dart';
 import 'templates_screen.dart';
 
@@ -46,25 +47,35 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.bar_chart),
             tooltip: 'ស្ថិតិ',
-            onPressed: () =>
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const StatsScreen())),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const StatsScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.assignment),
             tooltip: 'គំរូការការទៅបុណ្យ',
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const TemplatesScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'ការកំណត់ Notification',
             onPressed: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const TemplatesScreen())),
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const NotificationSettingsScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'គ្រប់គ្រងទិន្នន័យ',
-            onPressed: () =>
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageScreen())),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ManageScreen())),
           ),
         ],
       ),
       body: s.history.isEmpty
-          ? const Center(child: Text('មិនទាន់មានប្រវត្តិ ចុច «ចាត់ទៅបុណ្យថ្មី» ដើម្បីចាប់ផ្តើម'))
+          ? const Center(
+              child: Text(
+                  'មិនទាន់មានប្រវត្តិ ចុច «ចាត់ទៅបុណ្យថ្មី» ដើម្បីចាប់ផ្តើម'))
           : ListView.separated(
               padding: const EdgeInsets.only(bottom: 88),
               itemCount: s.history.length,
@@ -77,7 +88,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 final count = names.isEmpty ? 0 : names.split(', ').length;
                 return ListTile(
                   leading: Icon(ended ? Icons.check_circle : Icons.schedule,
-                      color: ended ? Colors.grey : Theme.of(context).colorScheme.primary),
+                      color: ended
+                          ? Colors.grey
+                          : Theme.of(context).colorScheme.primary),
                   title: Text('${h['title']}  •  ${kh(count)} នាក់'),
                   subtitle: Text(
                     [historyDateText(h), if (time.isNotEmpty) time].join('\n') +
@@ -86,20 +99,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   isThreeLine: true,
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => HistoryDetailScreen(id: h['id'] as int))),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              HistoryDetailScreen(id: h['id'] as int))),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (!ended) ...[
                         IconButton(
-                            icon: const Icon(Icons.edit_outlined),
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                            ),
                             tooltip: 'កែប្រែ',
                             onPressed: () => editHistory(context, s, h)),
                         IconButton(
                             icon: const Icon(Icons.delete_outline),
                             tooltip: 'លុប',
-                            onPressed: () => deleteHistoryConfirm(context, s, h)),
+                            onPressed: () =>
+                                deleteHistoryConfirm(context, s, h)),
                       ],
                       IconButton(
                           icon: const Icon(Icons.copy),
@@ -113,8 +132,8 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: const Text('ចាត់ទៅបុណ្យថ្មី'),
-        onPressed: () => Navigator.push(
-            context, MaterialPageRoute(builder: (_) => const TemplatesScreen())),
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const TemplatesScreen())),
       ),
     );
   }

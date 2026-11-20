@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../core/khmer.dart';
 import '../core/khmer_lunar.dart';
 import '../data/db.dart';
+import '../services/notification_service.dart';
 import '../state/app_state.dart';
 import '../widgets/dialogs.dart';
 import 'staff_select_screen.dart';
@@ -66,6 +67,7 @@ Future<bool> deleteHistoryConfirm(BuildContext context, AppState s, Map<String, 
   );
   if (ok != true) return false;
   await Db.deleteHistory(h['id'] as int);
+  await NotificationService.instance.rescheduleAll();
   await s.load();
   return true;
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:task_assignment/core/khmer_lunar.dart';
 
 import '../core/khmer.dart';
 import '../core/roles.dart';
@@ -11,8 +12,18 @@ import '../state/app_state.dart';
 
 // ---------------- Statistics ----------------
 const _khMonths = [
-  'មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា',
-  'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'
+  'មករា',
+  'កុម្ភៈ',
+  'មីនា',
+  'មេសា',
+  'ឧសភា',
+  'មិថុនា',
+  'កក្កដា',
+  'សីហា',
+  'កញ្ញា',
+  'តុលា',
+  'វិច្ឆិកា',
+  'ធ្នូ'
 ];
 
 enum StatPeriod { day, month, year }
@@ -52,7 +63,10 @@ class _StatsScreenState extends State<StatsScreen> {
           f.format(DateTime(anchor.year, anchor.month + 1, 0))
         );
       case StatPeriod.year:
-        return (f.format(DateTime(anchor.year, 1, 1)), f.format(DateTime(anchor.year, 12, 31)));
+        return (
+          f.format(DateTime(anchor.year, 1, 1)),
+          f.format(DateTime(anchor.year, 12, 31))
+        );
     }
   }
 
@@ -89,7 +103,8 @@ class _StatsScreenState extends State<StatsScreen> {
         'GROUP BY s.id',
         [r.$1, r.$2]);
     final t = await db.rawQuery(
-        'SELECT COUNT(*) AS c FROM task_history WHERE task_date BETWEEN ? AND ?', [r.$1, r.$2]);
+        'SELECT COUNT(*) AS c FROM task_history WHERE task_date BETWEEN ? AND ?',
+        [r.$1, r.$2]);
     if (!mounted) return;
     setState(() {
       rows = data;
@@ -102,7 +117,7 @@ class _StatsScreenState extends State<StatsScreen> {
     final r = range;
     final db = await Db.instance;
     final d = await db.rawQuery(
-        'SELECT h.title, ts.task_date, ts.start_min, ts.end_min FROM task_staff ts '
+        'SELECT h.title, h.place, ts.task_date, ts.start_min, ts.end_min FROM task_staff ts '
         'JOIN task_history h ON h.id = ts.history_id '
         'WHERE ts.staff_id = ? AND ts.task_date BETWEEN ? AND ? '
         'ORDER BY ts.task_date DESC, ts.start_min DESC',
@@ -111,8 +126,7 @@ class _StatsScreenState extends State<StatsScreen> {
     String time(Map<String, dynamic> x) {
       final a = x['start_min'], b = x['end_min'];
       if (a == null || b == null) return '';
-      return ' • ${khTime(TimeOfDay(hour: a ~/ 60, minute: a % 60))} - '
-          '${khTime(TimeOfDay(hour: b ~/ 60, minute: b % 60))}';
+      return ' • ${khTime(TimeOfDay(hour: a ~/ 60, minute: a % 60))}';
     }
 
     showModalBottomSheet(
@@ -124,7 +138,7 @@ class _StatsScreenState extends State<StatsScreen> {
         builder: (_, ctrl) => Column(
           children: [
             ListTile(
-              title: Text('${row['name']} — ${kh(d.length)} ដង',
+              title: Text('${formatStaffName(row)} — ${kh(d.length)} ដង',
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text(label),
             ),
@@ -135,12 +149,16 @@ class _StatsScreenState extends State<StatsScreen> {
                   : ListView.builder(
                       controller: ctrl,
                       itemCount: d.length,
-                      itemBuilder: (_, i) => ListTile(
-                        dense: true,
-                        title: Text('${d[i]['title']}'),
-                        subtitle: Text(
-                            '${khDate(DateTime.parse(d[i]['task_date'] as String))}${time(d[i])}'),
-                      ),
+                      itemBuilder: (_, i) {
+                        final place = (d[i]['place'] ?? '').toString();
+                        return ListTile(
+                          dense: true,
+                          title: Text(
+                              '${d[i]['title']}${place.isEmpty ? '' : ' • នៅ $place'}'),
+                          subtitle: Text(
+                              'ថ្ងៃ${khDate(DateTime.parse(d[i]['task_date'] as String))}${time(d[i])}'),
+                        );
+                      },
                     ),
             ),
           ],
@@ -152,23 +170,30 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     final roles = context.watch<AppState>().roles;
-    var list = rows.where((x) => roleFilter == null || x['role'] == roleFilter).toList();
+    var list = rows
+        .where((x) => roleFilter == null || x['role'] == roleFilter)
+        .toList();
     switch (sort) {
       case StatSort.most:
         list.sort((a, b) {
           final c = (b['c'] as int).compareTo(a['c'] as int);
-          return c != 0 ? c : (a['name'] as String).compareTo(b['name'] as String);
+          return c != 0
+              ? c
+              : (a['name'] as String).compareTo(b['name'] as String);
         });
       case StatSort.least:
         list.sort((a, b) {
           final c = (a['c'] as int).compareTo(b['c'] as int);
-          return c != 0 ? c : (a['name'] as String).compareTo(b['name'] as String);
+          return c != 0
+              ? c
+              : (a['name'] as String).compareTo(b['name'] as String);
         });
       case StatSort.name:
         list.sort(compareStaff);
     }
     final total = list.fold<int>(0, (s, x) => s + (x['c'] as int));
-    final maxC = list.fold<int>(0, (s, x) => (x['c'] as int) > s ? x['c'] as int : s);
+    final maxC =
+        list.fold<int>(0, (s, x) => (x['c'] as int) > s ? x['c'] as int : s);
 
     return Scaffold(
       appBar: AppBar(title: const Text('ស្ថិតិការទៅធ្វើការ')),
@@ -180,7 +205,8 @@ class _StatsScreenState extends State<StatsScreen> {
               segments: const [
                 ButtonSegment(value: StatPeriod.day, label: Text('ប្រចាំថ្ងៃ')),
                 ButtonSegment(value: StatPeriod.month, label: Text('ប្រចាំខែ')),
-                ButtonSegment(value: StatPeriod.year, label: Text('ប្រចាំឆ្នាំ')),
+                ButtonSegment(
+                    value: StatPeriod.year, label: Text('ប្រចាំឆ្នាំ')),
               ],
               selected: {period},
               onSelectionChanged: (v) {
@@ -192,7 +218,9 @@ class _StatsScreenState extends State<StatsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => _shift(-1)),
+              IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => _shift(-1)),
               TextButton(
                 onPressed: () async {
                   final d = await showDatePicker(
@@ -207,7 +235,9 @@ class _StatsScreenState extends State<StatsScreen> {
                 },
                 child: Text(label, style: const TextStyle(fontSize: 16)),
               ),
-              IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => _shift(1)),
+              IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () => _shift(1)),
             ],
           ),
           Card(
@@ -219,12 +249,14 @@ class _StatsScreenState extends State<StatsScreen> {
                 children: [
                   Column(children: [
                     Text(kh(taskCount),
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold)),
                     const Text('ការងារ'),
                   ]),
                   Column(children: [
                     Text(kh(total),
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold)),
                     const Text('ចំនួនអ្នកទៅធ្វើការ (សរុប)'),
                   ]),
                 ],
@@ -286,21 +318,25 @@ class _StatsScreenState extends State<StatsScreen> {
                         itemBuilder: (_, i) {
                           final x = list[i];
                           final c = x['c'] as int;
-                          final isTop = sort == StatSort.most && i == 0 && c > 0;
+                          final isTop =
+                              sort == StatSort.most && i == 0 && c > 0;
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: isTop ? Colors.amber : null,
                               child: isTop
-                                  ? const Icon(Icons.emoji_events, color: Colors.white)
+                                  ? const Icon(Icons.emoji_events,
+                                      color: Colors.white)
                                   : Text(kh(i + 1)),
                             ),
-                            title: Text(x['name']),
+                            title: Text(formatStaffName(x)),
                             subtitle: Padding(
                               padding: const EdgeInsets.only(top: 4),
-                              child: LinearProgressIndicator(value: maxC == 0 ? 0 : c / maxC),
+                              child: LinearProgressIndicator(
+                                  value: maxC == 0 ? 0 : c / maxC),
                             ),
                             trailing: Text('${kh(c)} ដង',
-                                style: const TextStyle(fontWeight: FontWeight.bold)),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
                             onTap: () => _showDetail(x),
                           );
                         },

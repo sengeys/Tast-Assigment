@@ -17,7 +17,10 @@ class ManageScreen extends StatelessWidget {
     Widget section(String title, String table, List<Map<String, dynamic>> rows,
         {bool withRole = false}) {
       // បញ្ជីតួនាទីតាមលំដាប់ + តួនាទីចាស់ណាដែលមានក្នុងបុគ្គលិកស្រាប់ តែមិនមានក្នុង roleOrder
-      final roleOptions = [...roleOrder, ...s.roles.where((x) => !roleOrder.contains(x))];
+      final roleOptions = [
+        ...roleOrder,
+        ...s.roles.where((x) => !roleOrder.contains(x))
+      ];
 
       Future<void> edit(Map<String, dynamic> r) async {
         final v = await recordDialog(context, 'កែប្រែ$title',
@@ -56,7 +59,9 @@ class ManageScreen extends StatelessWidget {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => edit(r)),
+                  IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => edit(r)),
                   IconButton(
                     icon: const Icon(Icons.delete_outline),
                     onPressed: () async {
@@ -105,8 +110,8 @@ class ManageScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('គ្រប់គ្រងទិន្នន័យ')),
       body: ListView(children: [
-        section('បុគ្គលិក', 'staff', s.staff, withRole: true),
-        section('អ្នកដឹកនាំ', 'leaders', s.leaders),
+        section('ព្រះសង្ឃ', 'staff', s.staff, withRole: true),
+        section('អាចារ្យ', 'leaders', s.leaders),
         section('ទីតាំង', 'places', s.places),
       ]),
     );
