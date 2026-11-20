@@ -138,14 +138,10 @@ class AppState extends ChangeNotifier {
   }
 
   String lengthOfTitle() {
-    final names = selectedNames;
-
-    String middleText = ' ⋆⋅𖤓⋅⋆ ';
-
-    String sideText = '─' * (names.length - 2);
-    String combinedText = sideText + middleText + sideText;
-
-    return combinedText;
+    const middleText = ' ⋆⋅𖤓⋅⋆ ';
+    final sideCount = title.characters.length + 2;
+    final sideText = '-' * (sideCount > 0 ? sideCount : 0);
+    return sideText + middleText + sideText;
   }
 
   String buildMessage() {
@@ -154,7 +150,7 @@ class AppState extends ChangeNotifier {
     final names = selectedStaff.map((s) => s['name'] as String).toList();
     final b = StringBuffer()
       ..writeln('᯽⋆⊱ $title ${kh(names.length)} អង្គ ⊰⋆᯽')
-      ..writeln(lengthOfTitle())
+      ..writeln(('  ') + lengthOfTitle())
       ..writeln();
     for (var i = 0; i < names.length; i++) {
       b

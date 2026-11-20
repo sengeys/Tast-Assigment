@@ -11,4 +11,4 @@ git config --global user.email "example@example.com"
 
 flutter pub get
 flutter run
-flutter run build apk --release
+flutter build apk --release
