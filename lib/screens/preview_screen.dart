@@ -13,42 +13,50 @@ class PreviewScreen extends StatelessWidget {
     final msg = s.buildMessage();
     return Scaffold(
       appBar: AppBar(title: const Text('មើលសារ')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Expanded(
-              child: Container(
+      body: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8)),
+                  child: SingleChildScrollView(
+                      child: SelectableText(msg,
+                          style: const TextStyle(fontSize: 16, height: 1.3))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                    color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                child: SingleChildScrollView(child: SelectableText(msg, style: const TextStyle(fontSize: 16, height: 1.3))),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                icon: const Icon(Icons.copy),
-                label: Text(s.editingId == null
-                    ? 'Copy សារ និងរក្សាទុកប្រវត្តិ'
-                    : 'Copy សារ និងរក្សាទុកការកែប្រែ'),
-                onPressed: () async {
-                  final ok = await s.copyAndSave();
-                  if (!context.mounted) return;
-                  if (!ok) {
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.copy),
+                  label: Text(s.editingId == null
+                      ? 'Copy សារ និងរក្សាទុកប្រវត្តិ'
+                      : 'Copy សារ និងរក្សាទុកការកែប្រែ'),
+                  onPressed: () async {
+                    final ok = await s.copyAndSave();
+                    if (!context.mounted) return;
+                    if (!ok) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content:
+                              Text('មានបុគ្គលិកជាន់ពេលគ្នា — មិនបានរក្សាទុក')));
+                      return;
+                    }
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('មានបុគ្គលិកជាន់ពេលគ្នា — មិនបានរក្សាទុក')));
-                    return;
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('បាន Copy និងរក្សាទុកប្រវត្តិរួចរាល់ ✔')));
-                  Navigator.popUntil(context, (r) => r.isFirst);
-                },
+                        content:
+                            Text('បាន Copy និងរក្សាទុកប្រវត្តិរួចរាល់ ✔')));
+                    Navigator.popUntil(context, (r) => r.isFirst);
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

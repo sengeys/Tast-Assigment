@@ -49,7 +49,7 @@ class ManageScreen extends StatelessWidget {
               subtitle: withRole
                   ? Text([
                       r['role'],
-                      if (r['age'] != null) 'អាយុ ${kh(r['age'])} ឆ្នាំ',
+                      if (r['age'] != null) 'វស្សា ${kh(r['age'])}',
                       r['phone']
                     ]
                       .where((e) => e != null && e.toString().isNotEmpty)

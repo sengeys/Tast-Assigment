@@ -1,5 +1,71 @@
 // Dialog និង SnackBar ដែលប្រើរួមគ្នា
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+String formatPhoneNumber(String value) {
+  final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+  final formatted = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i == 3 || i == 6) formatted.write('-');
+    formatted.write(digits[i]);
+  }
+  return formatted.toString();
+}
+
+class PhoneNumberInputFormatter extends TextInputFormatter {
+  const PhoneNumberInputFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (!newValue.composing.isCollapsed) return newValue;
+
+    final formatted = formatPhoneNumber(newValue.text);
+    final selection = newValue.selection;
+    if (!selection.isValid) {
+      return TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }
+
+    int digitsBefore(int offset) {
+      final safeOffset = offset < 0
+          ? 0
+          : (offset > newValue.text.length ? newValue.text.length : offset);
+      return RegExp(r'[0-9]')
+          .allMatches(newValue.text.substring(0, safeOffset))
+          .length;
+    }
+
+    int offsetForDigitCount(int digitCount) {
+      if (digitCount == 0) return 0;
+      var digitsSeen = 0;
+      for (var i = 0; i < formatted.length; i++) {
+        if (formatted[i] != '-') digitsSeen++;
+        if (digitsSeen == digitCount) {
+          final afterSeparator =
+              i + 1 < formatted.length && formatted[i + 1] == '-';
+          return i + 1 + (afterSeparator ? 1 : 0);
+        }
+      }
+      return formatted.length;
+    }
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection(
+        baseOffset: offsetForDigitCount(digitsBefore(selection.baseOffset)),
+        extentOffset: offsetForDigitCount(digitsBefore(selection.extentOffset)),
+        affinity: selection.affinity,
+        isDirectional: selection.isDirectional,
+      ),
+      composing: TextRange.empty,
+    );
+  }
+}
 
 void showSnack(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -38,7 +104,7 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
     bool includeAgeAndPhone = true}) {
   final n = TextEditingController(text: name);
   String roleValue = role; // '' = មិនទាន់ជ្រើសរើស
-  final p = TextEditingController(text: phone);
+  final p = TextEditingController(text: formatPhoneNumber(phone));
   final a = TextEditingController(text: age);
   return showDialog<Map<String, String>>(
     context: context,
@@ -88,6 +154,7 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
               TextField(
                   controller: p,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: const [PhoneNumberInputFormatter()],
                   decoration: const InputDecoration(
                       labelText: 'លេខទូរស័ព្ទ', border: OutlineInputBorder())),
             ],

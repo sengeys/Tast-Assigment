@@ -76,6 +76,7 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
           ),
           Expanded(
             child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 120),
               itemCount: list.length,
               itemBuilder: (_, i) {
                 final x = list[i];
@@ -85,8 +86,6 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                   title: Text(x['name']),
                   subtitle: Text([
                     x['role'],
-                    if (x['age'] != null) 'អាយុ ${kh(x['age'])} ឆ្នាំ',
-                    x['phone']
                   ]
                       .where((e) => e != null && e.toString().isNotEmpty)
                       .join(' • ')),
@@ -94,6 +93,13 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
               },
             ),
           ),
+          SizedBox(
+              height: 50,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                alignment: Alignment.centerLeft,
+                child: Text('សរុបមានចំនួន ${kh(list.length)} អង្គ'),
+              )),
         ],
       ),
       floatingActionButton: Column(
