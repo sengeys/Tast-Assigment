@@ -1,7 +1,7 @@
 // អេក្រង់ដើម: ប្រវត្តិការចាត់តាំង
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
@@ -128,11 +128,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        centerTitle: true,
-        leading: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Image.asset('assets/icons/icon_foreground.png'),
-        ),
+        centerTitle: false,
+        // leading: Padding(
+        //   padding: const EdgeInsets.all(8),
+        //   child: Image.asset(
+        //     'assets/icons/icon.png',
+        //   ),
+        // ),
         title: const Text('ប្រវត្តិការទៅបុណ្យ'),
         actions: [
           IconButton(
