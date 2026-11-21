@@ -144,7 +144,7 @@ class _StatsScreenState extends State<StatsScreen> {
             const Divider(height: 1),
             Expanded(
               child: d.isEmpty
-                  ? const Center(child: Text('មិនមានការងារ'))
+                  ? const Center(child: Text('មិនមានប្រវត្តិការទៅបុណ្យ'))
                   : ListView.builder(
                       controller: ctrl,
                       itemCount: d.length,
@@ -195,7 +195,7 @@ class _StatsScreenState extends State<StatsScreen> {
         list.fold<int>(0, (s, x) => (x['c'] as int) > s ? x['c'] as int : s);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ស្ថិតិការទៅធ្វើការ')),
+      appBar: AppBar(title: const Text('ស្ថិតិការទៅបុណ្យ')),
       body: Column(
         children: [
           Padding(
@@ -250,13 +250,13 @@ class _StatsScreenState extends State<StatsScreen> {
                     Text(kh(taskCount),
                         style: const TextStyle(
                             fontSize: 22, fontWeight: FontWeight.bold)),
-                    const Text('ការងារ'),
+                    const Text('ចំនួនបុណ្យ (សរុប)'),
                   ]),
                   Column(children: [
                     Text(kh(total),
                         style: const TextStyle(
                             fontSize: 22, fontWeight: FontWeight.bold)),
-                    const Text('ចំនួនអ្នកទៅធ្វើការ (សរុប)'),
+                    const Text('ចំនួនអ្នកទៅបុណ្យ (សរុប)'),
                   ]),
                 ],
               ),
