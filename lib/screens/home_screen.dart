@@ -8,8 +8,11 @@ import '../core/khmer.dart';
 import '../state/app_state.dart';
 import 'history_actions.dart';
 import 'history_detail_screen.dart';
+import 'app_settings_screen.dart';
 import 'manage_screen.dart';
+import 'notification_inbox_screen.dart';
 import 'notification_settings_screen.dart';
+import '../services/notification_service.dart';
 import 'stats_screen.dart';
 import 'templates_screen.dart';
 
@@ -20,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Timer? _timer;
 
   @override
@@ -41,7 +45,94 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     return Scaffold(
+      key: _scaffoldKey,
+      endDrawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.tertiary,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    child: Icon(
+                      Icons.person,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Profile',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.notifications_outlined),
+              title: const Text('ការជូនដំណឹង'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.palette_outlined),
+              title: const Text('ការកំណត់'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AppSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.manage_accounts_outlined),
+              title: const Text('គ្រប់គ្រងទិន្នន័យ'),
+              subtitle: const Text('ព្រះសង្ឃ អាចារ្យ និងទីតាំង'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ManageScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Image.asset('assets/icons/icon_foreground.png'),
+        ),
         title: const Text('ប្រវត្តិការទៅបុណ្យ'),
         actions: [
           IconButton(
@@ -50,25 +141,27 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const StatsScreen())),
           ),
-          IconButton(
-            icon: const Icon(Icons.assignment),
-            tooltip: 'គំរូការការទៅបុណ្យ',
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const TemplatesScreen())),
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'ការកំណត់ Notification',
-            onPressed: () => Navigator.push(
+          ValueListenableBuilder<int>(
+            valueListenable: NotificationService.instance.inboxCount,
+            builder: (context, count, _) => IconButton(
+              tooltip: 'Notification Alert',
+              icon: Badge(
+                isLabelVisible: count > 0,
+                label: Text(count > 99 ? '99+' : '$count'),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (_) => const NotificationSettingsScreen())),
+                  builder: (_) => const NotificationInboxScreen(),
+                ),
+              ),
+            ),
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'គ្រប់គ្រងទិន្នន័យ',
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ManageScreen())),
+            icon: const Icon(Icons.menu),
+            tooltip: 'បើក Sidebar menu',
+            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
         ],
       ),
@@ -91,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: ended
                           ? Colors.grey
                           : Theme.of(context).colorScheme.primary),
-                  title: Text('${h['title']}  •  ${kh(count)} នាក់'),
+                  title: Text('${h['title']}  •  ${kh(count)} អង្គ'),
                   subtitle: Text(
                     [historyDateText(h), if (time.isNotEmpty) time].join('\n') +
                         (names.isEmpty ? '' : '\n$names'),

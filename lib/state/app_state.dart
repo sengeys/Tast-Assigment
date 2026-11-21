@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/khmer.dart';
 import '../core/khmer_lunar.dart';
@@ -10,6 +11,19 @@ import '../data/db.dart';
 import '../services/notification_service.dart';
 
 class AppState extends ChangeNotifier {
+  static const themeSeeds = <Color>[
+    Colors.teal,
+    Colors.blue,
+    Colors.deepPurple,
+    Colors.deepOrange,
+  ];
+  static const _themeSeedKey = 'appThemeSeedIndex';
+
+  SharedPreferencesAsync get _preferences => SharedPreferencesAsync();
+  int _themeSeedIndex = 0;
+
+  Color get themeSeed => themeSeeds[_themeSeedIndex];
+
   List<Map<String, dynamic>> staff = [],
       leaders = [],
       templates = [],
@@ -27,12 +41,27 @@ class AppState extends ChangeNotifier {
   String? place;
 
   Future<void> load() async {
+    final savedThemeIndex = await _preferences.getInt(_themeSeedKey);
+    if (savedThemeIndex != null &&
+        savedThemeIndex >= 0 &&
+        savedThemeIndex < themeSeeds.length) {
+      _themeSeedIndex = savedThemeIndex;
+    }
     staff = List.of(await Db.all('staff'))..sort(compareStaff);
     leaders = await Db.all('leaders');
     templates = await Db.all('templates');
     places = await Db.all('places');
     history = await Db.all('task_history',
         orderBy: 'task_date DESC, start_min DESC, id DESC');
+    notifyListeners();
+  }
+
+  Future<void> setThemeSeed(int index) async {
+    if (index < 0 || index >= themeSeeds.length) {
+      throw RangeError.index(index, themeSeeds, 'index');
+    }
+    await _preferences.setInt(_themeSeedKey, index);
+    _themeSeedIndex = index;
     notifyListeners();
   }
 

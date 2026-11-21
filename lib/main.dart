@@ -2,13 +2,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'screens/notification_inbox_screen.dart';
 import 'services/notification_service.dart';
 import 'state/app_state.dart';
 import 'screens/home_screen.dart';
 
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.instance.initialize();
+  await NotificationService.instance.initialize(
+    onNotificationTap: () {
+      appNavigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => const NotificationInboxScreen(),
+        ),
+      );
+    },
+  );
   await NotificationService.instance.rescheduleAll();
   runApp(
     ChangeNotifierProvider<AppState>(
@@ -27,11 +38,13 @@ class TaskApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'កម្មវិធីចាត់ព្រះសង្ឃទៅបុណ្យ',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorSchemeSeed: Colors.teal, 
+        colorSchemeSeed: appState.themeSeed,
         useMaterial3: true,
         fontFamily: 'NotoSansKhmer',
       ),

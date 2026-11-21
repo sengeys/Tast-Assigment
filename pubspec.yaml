@@ -31,6 +31,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/fonts/noto-sans-khmer/static/
   fonts:
     - family: NotoSansKhmer
       fonts:

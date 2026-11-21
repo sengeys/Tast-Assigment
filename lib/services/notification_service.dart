@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -36,19 +39,26 @@ class NotificationService {
 
   static const _enabledKey = 'taskNotificationsEnabled';
   static const _leadMinutesKey = 'taskNotificationLeadMinutes';
+  static const _inboxKey = 'notificationInbox';
   static const _leadMinuteOptions = {0, 5, 10, 15, 30, 60};
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+  final ValueNotifier<int> inboxCount = ValueNotifier<int>(0);
   bool _initialized = false;
 
   bool get _supportsScheduledNotifications =>
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
 
-  Future<void> initialize() async {
-    if (_initialized || !_supportsScheduledNotifications) return;
+  Future<void> initialize({void Function()? onNotificationTap}) async {
+    if (_initialized) return;
+    inboxCount.value = (await loadInbox()).length;
+    if (!_supportsScheduledNotifications) {
+      _initialized = true;
+      return;
+    }
 
     timezone_data.initializeTimeZones();
     final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
@@ -63,8 +73,71 @@ class NotificationService {
           requestSoundPermission: false,
         ),
       ),
+      onDidReceiveNotificationResponse: (response) {
+        unawaited(_handleNotificationResponse(response, onNotificationTap));
+      },
     );
     _initialized = true;
+  }
+
+  Future<List<Map<String, dynamic>>> loadInbox() async {
+    final stored = await _preferences.getStringList(_inboxKey) ?? const [];
+    return stored
+        .map((item) => jsonDecode(item))
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
+  Future<void> clearInbox() async {
+    await _preferences.setStringList(_inboxKey, const []);
+    inboxCount.value = 0;
+  }
+
+  Future<void> _handleNotificationResponse(
+    NotificationResponse response,
+    void Function()? onNotificationTap,
+  ) async {
+    final historyId = int.tryParse(response.payload ?? '');
+    Map<String, dynamic>? historyItem;
+    if (historyId != null) {
+      final rows = await (await Db.instance).query(
+        'task_history',
+        where: 'id = ?',
+        whereArgs: [historyId],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) historyItem = rows.first;
+    }
+
+    final eventDate = DateTime.tryParse(
+      (historyItem?['task_date'] ?? '').toString(),
+    );
+    final startMinute = historyItem?['start_min'];
+    final place = (historyItem?['place'] ?? '').toString().trim();
+    final isEarlyReminder = response.id != null && response.id!.isEven;
+    final details = <String>[
+      if (eventDate != null) khDate(eventDate),
+      if (startMinute is int)
+        khTime(TimeOfDay(hour: startMinute ~/ 60, minute: startMinute % 60)),
+      if (place.isNotEmpty) place,
+    ];
+    final entry = <String, dynamic>{
+      'id': DateTime.now().microsecondsSinceEpoch.toString(),
+      'title': historyItem == null
+          ? 'Notification'
+          : '${isEarlyReminder ? 'ជិតដល់ម៉ោង' : 'ដល់ម៉ោង'}: ${historyItem['title']}',
+      'body': details.join(' • '),
+      'receivedAt': DateTime.now().toIso8601String(),
+    };
+    final inbox = await loadInbox();
+    inbox.insert(0, entry);
+    if (inbox.length > 100) inbox.removeRange(100, inbox.length);
+    await _preferences.setStringList(
+      _inboxKey,
+      inbox.map(jsonEncode).toList(),
+    );
+    inboxCount.value = inbox.length;
+    onNotificationTap?.call();
   }
 
   Future<ReminderSettings> loadSettings() async {
