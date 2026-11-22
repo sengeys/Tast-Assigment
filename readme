@@ -62,3 +62,5 @@ source ~/.zshrc
 #ពេលបញ្ចប់ការងារលឿនពេក: វាយ push (វានឹងប្រើ Message Default: wip: save progress)
 
 #ដោយសារ gdn ប្រើ git add . (យក File ដែលកែប្រែទាំងអស់) សូមប្រាកដថាអ្នកមាន .gitignore ត្រឹមត្រូវ (ដូចជា build/, .dart_tool/, .DS_Store) កុំឱ្យវា Push ឯកសារ Build ធំៗ ឬឯកសារ Local ឡើង GitHub។
+
+#
