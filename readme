@@ -44,8 +44,8 @@ function push {
 cat << 'EOF' >> ~/.zshrc
 
 # Quick Git Pull & Push helpers
-alias gup='git pull --rebase'
-gdn() {
+alias pull='git pull --rebase'
+push() {
   local msg="${1:-wip: save progress}"
   git add . && git commit -m "$msg" && git push
 }
