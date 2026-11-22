@@ -235,6 +235,7 @@ class AppState extends ChangeNotifier {
     b
       ..writeln('🗓 ( ${khDateFull(date)} )')
       ..writeln()
+      ..writeln('✧⊰⋆ ${khDate(date)} ⋆⊱✧')
       ..write('───⋆⊱༻𖥸༺⊰⋆───');
     return b.toString();
   }
