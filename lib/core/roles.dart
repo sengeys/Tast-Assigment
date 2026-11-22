@@ -19,7 +19,7 @@ int roleRank(Object? role) {
   return i == -1 ? roleOrder.length : i;
 }
 
-String formatStaffName(Map<String, dynamic> staff) {
+String formatStaffName(Map<String, dynamic> staff, {bool includeRole = true}) {
   final name = (staff['name'] ?? '').toString();
   final role = (staff['role'] ?? '').toString().trim();
   const prefixes = {
@@ -37,7 +37,7 @@ String formatStaffName(Map<String, dynamic> staff) {
   };
   final prefix = prefixes[role] ?? (suffixRoles.contains(role) ? 'គ្រូ. ' : '');
 
-  final suffix = suffixRoles.contains(role) ? ' ($role)' : '';
+  final suffix = includeRole && suffixRoles.contains(role) ? ' ($role)' : '';
   return '$prefix$name$suffix';
 }
 

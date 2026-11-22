@@ -8,7 +8,7 @@ class Db {
 
   static Future<Database> _open() async {
     final path = p.join(await getDatabasesPath(), 'task_assign.db');
-    return openDatabase(path, version: 5, onUpgrade: (d, oldV, newV) async {
+    return openDatabase(path, version: 6, onUpgrade: (d, oldV, newV) async {
       if (oldV < 5) {
         await d.execute('ALTER TABLE templates ADD COLUMN note TEXT');
       }
@@ -19,16 +19,20 @@ class Db {
         await d.execute('ALTER TABLE staff ADD COLUMN age INTEGER');
       }
       if (oldV < 2) {
-        await d.execute('ALTER TABLE task_history ADD COLUMN start_min INTEGER');
+        await d
+            .execute('ALTER TABLE task_history ADD COLUMN start_min INTEGER');
         await d.execute('ALTER TABLE task_history ADD COLUMN end_min INTEGER');
         await _createTaskStaff(d);
         // បម្លែងប្រវត្តិចាស់ ឱ្យចូលក្នុងស្ថិតិ (មិនមានម៉ោង ដូច្នេះមិនយកមកពិនិត្យការជាន់ពេល)
         final rows = await d.query('task_history');
         for (final h in rows) {
-          final names =
-              (h['staff_names'] ?? '').toString().split(', ').where((e) => e.isNotEmpty);
+          final names = (h['staff_names'] ?? '')
+              .toString()
+              .split(', ')
+              .where((e) => e.isNotEmpty);
           for (final n in names) {
-            final m = await d.query('staff', where: 'name = ?', whereArgs: [n], limit: 1);
+            final m = await d.query('staff',
+                where: 'name = ?', whereArgs: [n], limit: 1);
             await d.insert('task_staff', {
               'history_id': h['id'],
               'staff_id': m.isEmpty ? null : m.first['id'],
@@ -37,6 +41,10 @@ class Db {
             });
           }
         }
+      }
+      if (oldV >= 2 && oldV < 6) {
+        await d.execute(
+            'ALTER TABLE task_staff ADD COLUMN direct INTEGER NOT NULL DEFAULT 0');
       }
     }, onCreate: (d, v) async {
       await d.execute('CREATE TABLE staff('
@@ -83,9 +91,11 @@ class Db {
     });
   }
 
-  static Future<void> _createTaskStaff(Database d) => d.execute('CREATE TABLE task_staff('
+  static Future<void> _createTaskStaff(Database d) => d.execute(
+      'CREATE TABLE task_staff('
       'id INTEGER PRIMARY KEY AUTOINCREMENT, history_id INTEGER, staff_id INTEGER, '
-      'staff_name TEXT, task_date TEXT, start_min INTEGER, end_min INTEGER)');
+      'staff_name TEXT, task_date TEXT, start_min INTEGER, end_min INTEGER, '
+      'direct INTEGER NOT NULL DEFAULT 0)');
 
   static Future<void> deleteHistory(int id) async {
     final d = await instance;
@@ -93,13 +103,15 @@ class Db {
     await d.delete('task_history', where: 'id = ?', whereArgs: [id]);
   }
 
-  static Future<List<Map<String, dynamic>>> all(String table, {String? orderBy}) async =>
+  static Future<List<Map<String, dynamic>>> all(String table,
+          {String? orderBy}) async =>
       (await instance).query(table, orderBy: orderBy ?? 'id');
 
   static Future<int> insert(String table, Map<String, Object?> v) async =>
       (await instance).insert(table, v);
 
-  static Future<void> update(String table, int id, Map<String, Object?> v) async =>
+  static Future<void> update(
+          String table, int id, Map<String, Object?> v) async =>
       (await instance).update(table, v, where: 'id = ?', whereArgs: [id]);
 
   static Future<void> delete(String table, int id) async =>

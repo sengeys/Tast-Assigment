@@ -35,6 +35,7 @@ class AppState extends ChangeNotifier {
   String title = '';
   String note = ''; // បញ្ជាក់
   final Set<int> selected = {};
+  final Set<int> directInvites = {};
   DateTime date = DateTime.now();
   TimeOfDay? start, end;
   int? leaderId;
@@ -79,6 +80,12 @@ class AppState extends ChangeNotifier {
     selected
       ..clear()
       ..addAll(rows.map((r) => r['staff_id']).whereType<int>());
+    directInvites
+      ..clear()
+      ..addAll(rows
+          .where((r) => r['direct'] == 1)
+          .map((r) => r['staff_id'])
+          .whereType<int>());
     date =
         DateTime.tryParse((h['task_date'] ?? '').toString()) ?? DateTime.now();
     TimeOfDay? t(Object? m) =>
@@ -101,6 +108,7 @@ class AppState extends ChangeNotifier {
     title = t?['title'] ?? '';
     note = (t?['note'] ?? '').toString();
     selected.clear();
+    directInvites.clear();
     date = DateTime.now();
     start = parseTime(t?['start_time']);
     end = parseTime(t?['end_time']);
@@ -157,7 +165,20 @@ class AppState extends ChangeNotifier {
   }
 
   void toggle(int id) {
-    selected.contains(id) ? selected.remove(id) : selected.add(id);
+    if (selected.contains(id)) {
+      selected.remove(id);
+      directInvites.remove(id);
+    } else {
+      selected.add(id);
+    }
+    notifyListeners();
+  }
+
+  void toggleDirectInvite(int id) {
+    if (!selected.contains(id)) return;
+    directInvites.contains(id)
+        ? directInvites.remove(id)
+        : directInvites.add(id);
     notifyListeners();
   }
 
@@ -182,8 +203,11 @@ class AppState extends ChangeNotifier {
       ..writeln(('  ') + lengthOfTitle())
       ..writeln();
     for (var i = 0; i < names.length; i++) {
+      final staff = selectedStaff[i];
       b
-        ..writeln('${kh(i + 1)}. ${formatStaffName(selectedStaff[i])}')
+        ..writeln('${kh(i + 1)}. '
+            '${formatStaffName(staff, includeRole: false)}'
+            '${directInvites.contains(staff['id']) ? ' (ផ្ទាល់)' : ''}')
         ..writeln();
     }
     if (start != null) {
@@ -273,6 +297,7 @@ class AppState extends ChangeNotifier {
         'task_date': _dateStr,
         'start_min': sMin,
         'end_min': eMin,
+        'direct': directInvites.contains(x['id']) ? 1 : 0,
       });
     }
     await load();

@@ -75,22 +75,21 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
+            child: ListView(
               padding: const EdgeInsets.only(bottom: 120),
-              itemCount: list.length,
-              itemBuilder: (_, i) {
-                final x = list[i];
-                return CheckboxListTile(
-                  value: s.selected.contains(x['id']),
-                  onChanged: (_) => s.toggle(x['id']),
-                  title: Text(x['name']),
-                  subtitle: Text([
-                    x['role'],
-                  ]
-                      .where((e) => e != null && e.toString().isNotEmpty)
-                      .join(' • ')),
-                );
-              },
+              children: [
+                for (final x in list)
+                  CheckboxListTile(
+                    value: s.selected.contains(x['id']),
+                    onChanged: (_) => s.toggle(x['id']),
+                    title: Text(x['name']),
+                    subtitle: Text([
+                      x['role'],
+                    ]
+                        .where((e) => e != null && e.toString().isNotEmpty)
+                        .join(' • ')),
+                  ),
+              ],
             ),
           ),
           SizedBox(

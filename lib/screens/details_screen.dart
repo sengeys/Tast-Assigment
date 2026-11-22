@@ -147,6 +147,23 @@ class DetailsScreen extends StatelessWidget {
                 border: OutlineInputBorder()),
             onChanged: (v) => s.note = v,
           ),
+          if (s.selected.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(),
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('ជ្រើសរើសព្រះសង្ឃដែលនិមន្តផ្ទាល់'),
+              subtitle: Text('ទៅជាមួយដែរ តែក្រៅផ្លូវការ'),
+            ),
+            for (final x
+                in s.staff.where((x) => s.selected.contains(x['id'])))
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: s.directInvites.contains(x['id']),
+                onChanged: (_) => s.toggleDirectInvite(x['id']),
+                title: Text(x['name']),
+              ),
+          ],
           const SizedBox(height: 16),
           OutlinedButton.icon(
             icon: const Icon(Icons.bookmark_add_outlined),

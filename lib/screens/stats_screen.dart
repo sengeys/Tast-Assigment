@@ -40,9 +40,16 @@ class _StatsScreenState extends State<StatsScreen> {
   StatSort sort = StatSort.most; // ពេលចូលដំបូង: ច្រើនជាងគេមុន
   DateTime anchor = DateTime.now();
   String? roleFilter; // null = ទាំងអស់ (គ្រប់តួនាទី)
+  bool? directFilter;
   List<Map<String, dynamic>> rows = [];
   int taskCount = 0;
   bool loading = true;
+
+  int _countFor(Map<String, dynamic> row) {
+    if (directFilter == true) return row['direct_c'] as int;
+    if (directFilter == false) return row['indirect_c'] as int;
+    return row['c'] as int;
+  }
 
   @override
   void initState() {
@@ -97,7 +104,10 @@ class _StatsScreenState extends State<StatsScreen> {
     final r = range;
     final db = await Db.instance;
     final data = await db.rawQuery(
-        'SELECT s.id, s.name, s.role, COUNT(ts.id) AS c FROM staff s '
+        'SELECT s.id, s.name, s.role, COUNT(ts.id) AS c, '
+        'SUM(CASE WHEN ts.direct = 1 THEN 1 ELSE 0 END) AS direct_c, '
+        'SUM(CASE WHEN ts.id IS NOT NULL AND COALESCE(ts.direct, 0) = 0 '
+        'THEN 1 ELSE 0 END) AS indirect_c FROM staff s '
         'LEFT JOIN task_staff ts ON ts.staff_id = s.id AND ts.task_date BETWEEN ? AND ? '
         'GROUP BY s.id',
         [r.$1, r.$2]);
@@ -114,13 +124,22 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Future<void> _showDetail(Map<String, dynamic> row) async {
     final r = range;
+    final filterValue = directFilter == null ? null : (directFilter! ? 1 : 0);
     final db = await Db.instance;
     final d = await db.rawQuery(
-        'SELECT h.title, h.place, ts.task_date, ts.start_min, ts.end_min FROM task_staff ts '
+        'SELECT h.title, h.place, ts.task_date, ts.start_min, ts.end_min, ts.direct '
+        'FROM task_staff ts '
         'JOIN task_history h ON h.id = ts.history_id '
         'WHERE ts.staff_id = ? AND ts.task_date BETWEEN ? AND ? '
+        'AND (? IS NULL OR COALESCE(ts.direct, 0) = ?) '
         'ORDER BY ts.task_date DESC, ts.start_min DESC',
-        [row['id'], r.$1, r.$2]);
+        [
+          row['id'],
+          r.$1,
+          r.$2,
+          filterValue,
+          filterValue,
+        ]);
     if (!mounted) return;
     String time(Map<String, dynamic> x) {
       final a = x['start_min'], b = x['end_min'];
@@ -150,10 +169,12 @@ class _StatsScreenState extends State<StatsScreen> {
                       itemCount: d.length,
                       itemBuilder: (_, i) {
                         final place = (d[i]['place'] ?? '').toString();
+                        final direct = (d[i]['direct'] as int? ?? 0) == 1;
                         return ListTile(
                           dense: true,
                           title: Text(
-                              '${d[i]['title']}${place.isEmpty ? '' : ' • នៅ $place'}'),
+                              '${d[i]['title']}${place.isEmpty ? '' : ' • នៅ $place'}'
+                              '${direct ? ' (ផ្ទាល់)' : ''}'),
                           subtitle: Text(
                               'ថ្ងៃ${khDate(DateTime.parse(d[i]['task_date'] as String))}${time(d[i])}'),
                         );
@@ -171,18 +192,19 @@ class _StatsScreenState extends State<StatsScreen> {
     final roles = context.watch<AppState>().roles;
     var list = rows
         .where((x) => roleFilter == null || x['role'] == roleFilter)
+        .where((x) => directFilter == null || _countFor(x) > 0)
         .toList();
     switch (sort) {
       case StatSort.most:
         list.sort((a, b) {
-          final c = (b['c'] as int).compareTo(a['c'] as int);
+          final c = _countFor(b).compareTo(_countFor(a));
           return c != 0
               ? c
               : (a['name'] as String).compareTo(b['name'] as String);
         });
       case StatSort.least:
         list.sort((a, b) {
-          final c = (a['c'] as int).compareTo(b['c'] as int);
+          final c = _countFor(a).compareTo(_countFor(b));
           return c != 0
               ? c
               : (a['name'] as String).compareTo(b['name'] as String);
@@ -190,9 +212,9 @@ class _StatsScreenState extends State<StatsScreen> {
       case StatSort.name:
         list.sort(compareStaff);
     }
-    final total = list.fold<int>(0, (s, x) => s + (x['c'] as int));
+    final total = list.fold<int>(0, (s, x) => s + _countFor(x));
     final maxC =
-        list.fold<int>(0, (s, x) => (x['c'] as int) > s ? x['c'] as int : s);
+        list.fold<int>(0, (s, x) => _countFor(x) > s ? _countFor(x) : s);
 
     return Scaffold(
       appBar: AppBar(title: const Text('ស្ថិតិការទៅបុណ្យ')),
@@ -289,6 +311,29 @@ class _StatsScreenState extends State<StatsScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               children: [
+                for (final entry in <(bool?, String)>[
+                  (null, 'ទាំងអស់'),
+                  (true, 'ផ្ទាល់'),
+                  (false, 'មិនផ្ទាល់'),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: ChoiceChip(
+                      label: Text(entry.$2),
+                      selected: directFilter == entry.$1,
+                      onSelected: (_) =>
+                          setState(() => directFilter = entry.$1),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 48,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              children: [
                 Padding(
                   padding: const EdgeInsets.all(4),
                   child: ChoiceChip(
@@ -316,7 +361,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         itemCount: list.length,
                         itemBuilder: (_, i) {
                           final x = list[i];
-                          final c = x['c'] as int;
+                          final c = _countFor(x);
                           final isTop =
                               sort == StatSort.most && i == 0 && c > 0;
                           return ListTile(
