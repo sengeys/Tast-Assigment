@@ -173,8 +173,9 @@ class DetailsScreen extends StatelessWidget {
                   await askText(context, 'ឈ្មោះគំរូ', initial: s.title);
               if (name == null || name.isEmpty) return;
               await s.saveAsTemplate(name);
-              if (context.mounted)
+              if (context.mounted) {
                 showSnack(context, 'បានរក្សាទុកជាគំរូរួចរាល់ ✔');
+              }
             },
           ),
           const SizedBox(height: 12),

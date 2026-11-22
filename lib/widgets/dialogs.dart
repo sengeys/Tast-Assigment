@@ -127,7 +127,7 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
                   if (roleValue.isNotEmpty) roleValue
                 }.toList();
                 return DropdownButtonFormField<String>(
-                  value: roleValue,
+                  initialValue: roleValue,
                   isExpanded: true,
                   decoration: const InputDecoration(
                       labelText: 'តួនាទី', border: OutlineInputBorder()),
