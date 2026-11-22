@@ -14,3 +14,51 @@ flutter run
 flutter build apk --release
 
 flutter run --release (ios)
+
+
+// Create command to push and pull github
+
+# លើ Windows (PowerShell)
+# (ចំណាំ៖ ប្រសិនបើ PowerShell ប្រាប់ទាក់ទងនឹង Execution Policy អ្នកអាចរត់ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned ម្ដងសិន)
+
+if (!(Test-Path -Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force | Out-Null }
+
+Add-Content -Path $PROFILE -Value @"
+
+# Quick Git Pull & Push helpers
+function pull { git pull --rebase }
+function push {
+    param([string]`$msg = "wip: save progress")
+    git add .
+    git commit -m "`$msg"
+    git push
+}
+"@
+
+. $PROFILE
+
+
+# លើ Mac (Terminal / Zsh)
+# បើក Terminal លើ Mac ហើយរត់ពាក្យបញ្ជាខាងក្រោមដើម្បីបន្ថែម Function ចូលក្នុង ~/.zshrc
+
+cat << 'EOF' >> ~/.zshrc
+
+# Quick Git Pull & Push helpers
+alias gup='git pull --rebase'
+gdn() {
+  local msg="${1:-wip: save progress}"
+  git add . && git commit -m "$msg" && git push
+}
+EOF
+source ~/.zshrc
+
+
+#របៀបប្រើលើ Windows PowerShell：
+
+#ពេលចាប់ផ្ដើមកែ៖ វាយ pull (វានឹងប្រើ Message Default: wip: save progress)
+
+#ពេលបញ្ចប់ការងារ (មាន Message): វាយ push "fix gradle config"
+
+#ពេលបញ្ចប់ការងារលឿនពេក: វាយ push (វានឹងប្រើ Message Default: wip: save progress)
+
+#ដោយសារ gdn ប្រើ git add . (យក File ដែលកែប្រែទាំងអស់) សូមប្រាកដថាអ្នកមាន .gitignore ត្រឹមត្រូវ (ដូចជា build/, .dart_tool/, .DS_Store) កុំឱ្យវា Push ឯកសារ Build ធំៗ ឬឯកសារ Local ឡើង GitHub។
