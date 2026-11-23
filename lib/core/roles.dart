@@ -14,6 +14,19 @@ const roleOrder = [
   'កូនសិស្ស'
 ];
 
+const _bhikkhuRoles = {
+  'ភិក្ខុ',
+  'ចៅអធិការ',
+  'វិន័យធរ',
+  'គ្រូសូត្រស្ដាំ',
+  'គ្រូសូត្រឆ្វេង',
+  'លេខាធិការ',
+  'ភត្តុទ្ទេសកៈ',
+};
+
+bool isBhikkhuRole(Object? role) =>
+    _bhikkhuRoles.contains((role ?? '').toString().trim());
+
 int roleRank(Object? role) {
   final i = roleOrder.indexOf((role ?? '').toString().trim());
   return i == -1 ? roleOrder.length : i;

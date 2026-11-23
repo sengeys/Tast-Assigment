@@ -138,6 +138,14 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('ប្រវត្តិការទៅបុណ្យ'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.bookmark_add_outlined),
+            tooltip: 'មើល និងបង្កើតគំរូបុណ្យ',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TemplatesScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.bar_chart),
             tooltip: 'ស្ថិតិ',
             onPressed: () => Navigator.push(context,

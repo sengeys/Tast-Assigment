@@ -1,24 +1,47 @@
 // អេក្រង់គំរូការងារ និងអេក្រង់បង្កើត/កែគំរូ
 import 'package:material_ui/material_ui.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
+import '../core/khmer_lunar.dart';
 import '../core/roles.dart';
 import '../data/db.dart';
 import '../state/app_state.dart';
 import '../widgets/dialogs.dart';
 import 'staff_select_screen.dart';
 
+enum TemplateFilter { temporary, permanent, archived }
+
 // ---------------- 1. Templates (គំរូការងារ) ----------------
 List<String> roleOptionsOf(AppState s) =>
     [...roleOrder, ...s.roles.where((x) => !roleOrder.contains(x))];
 
-class TemplatesScreen extends StatelessWidget {
+class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({super.key});
+
+  @override
+  State<TemplatesScreen> createState() => _TemplatesScreenState();
+}
+
+class _TemplatesScreenState extends State<TemplatesScreen> {
+  TemplateFilter filter = TemplateFilter.temporary;
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
+    final visibleTemplates = s.templates.where((t) {
+      final archived = t['archived'] == 1;
+      final temporary = t['is_temporary'] == 1;
+      switch (filter) {
+        case TemplateFilter.temporary:
+          return temporary && !archived;
+        case TemplateFilter.permanent:
+          return !temporary && !archived;
+        case TemplateFilter.archived:
+          return archived;
+      }
+    }).toList();
     String leaderOf(Object? id) {
       for (final l in s.leaders) {
         if (l['id'] == id) return l['name'] as String;
@@ -26,84 +49,160 @@ class TemplatesScreen extends StatelessWidget {
       return '';
     }
 
+    String dateOf(Object? value) {
+      final date = DateTime.tryParse((value ?? '').toString());
+      return date == null ? '' : 'ថ្ងៃ${khDate(date)}';
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('គំរូព្រះសង្ឃទៅបុណ្យ')),
-      body: s.templates.isEmpty
-          ? const Center(child: Text('មិនទាន់មានគំរូ ចុច + ដើម្បីបន្ថែម'))
-          : ListView(
-              padding: const EdgeInsets.only(bottom: 88),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Wrap(
+              spacing: 8,
               children: [
-                for (final t in s.templates)
-                  ListTile(
-                    leading: const Icon(Icons.assignment),
-                    title: Text(t['title']),
-                    isThreeLine: true,
-                    subtitle: Text([
-                      [
-                        if ((t['role'] ?? '').toString().isNotEmpty)
-                          '${t['role']}',
-                        if ((t['start_time'] ?? '').toString().isNotEmpty)
-                          'ម៉ោង ${t['start_time']}'
-                              '${(t['end_time'] ?? '').toString().isNotEmpty ? ' - ${t['end_time']}' : ''}',
-                      ].join(' • '),
-                      [
-                        if (leaderOf(t['leader_id']).isNotEmpty)
-                          'អាចារ្យ: ${leaderOf(t['leader_id'])}',
-                        if ((t['place'] ?? '').toString().isNotEmpty)
-                          'ទីតាំង: ${t['place']}',
-                      ].join(' • '),
-                      if ((t['note'] ?? '').toString().isNotEmpty)
-                        'បញ្ជាក់: ${t['note']}',
-                    ].where((e) => e.isNotEmpty).join('\n')),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined),
-                          tooltip: 'កែគំរូ',
-                          onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) =>
-                                      TemplateEditScreen(template: t))),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          tooltip: 'លុបគំរូ',
-                          onPressed: () async {
-                            final ok = await showDialog<bool>(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                title: Text('លុបគំរូ "${t['title']}" ?'),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('បោះបង់')),
-                                  FilledButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('លុប')),
-                                ],
-                              ),
-                            );
-                            if (ok != true) return;
-                            await Db.delete('templates', t['id']);
-                            s.load();
-                          },
-                        ),
-                      ],
-                    ),
-                    onTap: () {
-                      s.startFromTemplate(t);
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const StaffSelectScreen()));
-                    },
-                  ),
+                ChoiceChip(
+                  label: const Text('បណ្ដោះអាសន្ន'),
+                  selected: filter == TemplateFilter.temporary,
+                  onSelected: (_) =>
+                      setState(() => filter = TemplateFilter.temporary),
+                ),
+                ChoiceChip(
+                  label: const Text('អចិន្ត្រៃយ៍'),
+                  selected: filter == TemplateFilter.permanent,
+                  onSelected: (_) =>
+                      setState(() => filter = TemplateFilter.permanent),
+                ),
+                ChoiceChip(
+                  label: const Text('បានប្រើរួច'),
+                  selected: filter == TemplateFilter.archived,
+                  onSelected: (_) =>
+                      setState(() => filter = TemplateFilter.archived),
+                ),
               ],
             ),
+          ),
+          Expanded(
+            child: visibleTemplates.isEmpty
+                ? Center(
+                    child: Text(
+                      switch (filter) {
+                        TemplateFilter.temporary =>
+                          'មិនទាន់មានគំរូបណ្ដោះអាសន្ន ចុច + ដើម្បីបន្ថែម',
+                        TemplateFilter.permanent => 'មិនទាន់មានគំរូអចិន្ត្រៃយ៍',
+                        TemplateFilter.archived =>
+                          'មិនទាន់មានគំរូដែលបានប្រើរួច',
+                      },
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.only(bottom: 88),
+                    children: [
+                      for (final t in visibleTemplates)
+                        ListTile(
+                          leading: Icon(
+                            t['archived'] == 1
+                                ? Icons.archive_outlined
+                                : Icons.assignment,
+                          ),
+                          title: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: t['title'].toString()),
+                                const TextSpan(text: ' • '),
+                                TextSpan(
+                                  text: t['is_temporary'] == 1
+                                      ? 'បណ្ដោះអាសន្ន'
+                                      : 'អចិន្ត្រៃយ៍',
+                                  style: TextStyle(
+                                    color: t['is_temporary'] == 1 &&
+                                            t['archived'] != 1
+                                        ? Colors.orange.shade800
+                                        : null,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          isThreeLine: true,
+                          subtitle: Text([
+                            [
+                              if (dateOf(t['task_date']).isNotEmpty)
+                                dateOf(t['task_date']),
+                              if ((t['role'] ?? '').toString().isNotEmpty)
+                                '${t['role']}',
+                              if ((t['start_time'] ?? '').toString().isNotEmpty)
+                                'ម៉ោង ${t['start_time']}'
+                                    '${(t['end_time'] ?? '').toString().isNotEmpty ? ' - ${t['end_time']}' : ''}',
+                            ].join(' • '),
+                            [
+                              if (leaderOf(t['leader_id']).isNotEmpty)
+                                'អាចារ្យ: ${leaderOf(t['leader_id'])}',
+                              if ((t['place'] ?? '').toString().isNotEmpty)
+                                'ទីតាំង: ${t['place']}',
+                            ].join(' • '),
+                            if ((t['note'] ?? '').toString().isNotEmpty)
+                              'បញ្ជាក់: ${t['note']}',
+                          ].where((e) => e.isNotEmpty).join('\n')),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined),
+                                tooltip: 'កែគំរូ',
+                                onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            TemplateEditScreen(template: t))),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: 'លុបគំរូ',
+                                onPressed: () async {
+                                  final ok = await showDialog<bool>(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: Text('លុបគំរូ "${t['title']}" ?'),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('បោះបង់')),
+                                        FilledButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text('លុប')),
+                                      ],
+                                    ),
+                                  );
+                                  if (ok != true) return;
+                                  await Db.delete('templates', t['id']);
+                                  s.load();
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: t['archived'] == 1
+                              ? null
+                              : () {
+                                  s.startFromTemplate(t);
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const StaffSelectScreen()));
+                                },
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: const Text('គំរូថ្មី'),
@@ -130,11 +229,16 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
   TimeOfDay? start, end;
   int? leaderId;
   String? place;
+  bool isTemporary = true;
+  late DateTime date;
 
   @override
   void initState() {
     super.initState();
     final t = widget.template;
+    isTemporary = t == null || t['is_temporary'] == 1;
+    date =
+        DateTime.tryParse((t?['task_date'] ?? '').toString()) ?? DateTime.now();
     title = TextEditingController(text: (t?['title'] ?? '').toString());
     note = TextEditingController(text: (t?['note'] ?? '').toString());
     role = (t?['role'] ?? '').toString();
@@ -168,6 +272,9 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
       'leader_id': leaderId,
       'place': place ?? '',
       'note': note.text.trim(),
+      'is_temporary': isTemporary ? 1 : 0,
+      'archived': widget.template?['archived'] ?? 0,
+      'task_date': DateFormat('yyyy-MM-dd').format(date),
     };
     if (widget.template == null) {
       await Db.insert('templates', v);
@@ -176,6 +283,24 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
     }
     await state.load();
     nav.pop();
+  }
+
+  Future<void> _addLeader(AppState state) async {
+    final name = await askText(context, 'អាចារ្យថ្មី');
+    if (name == null || name.isEmpty) return;
+    final id = await Db.insert('leaders', {'name': name});
+    await state.load();
+    if (!mounted) return;
+    setState(() => leaderId = id);
+  }
+
+  Future<void> _addPlace(AppState state) async {
+    final name = await askText(context, 'ទីតាំងថ្មី');
+    if (name == null || name.isEmpty) return;
+    await Db.insert('places', {'name': name});
+    await state.load();
+    if (!mounted) return;
+    setState(() => place = name);
   }
 
   Widget _timeTile(
@@ -229,6 +354,50 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
                 border: OutlineInputBorder()),
           ),
           const SizedBox(height: 12),
+          ListTile(
+            shape: RoundedRectangleBorder(
+                side: const BorderSide(color: Colors.grey),
+                borderRadius: BorderRadius.circular(4)),
+            leading: const Icon(Icons.calendar_today),
+            title: Text(khDateFull(date)),
+            onTap: () async {
+              final selected = await showDatePicker(
+                context: context,
+                initialDate: date,
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2100),
+              );
+              if (selected != null) setState(() => date = selected);
+            },
+          ),
+          const SizedBox(height: 12),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('ប្រភេទគំរូ'),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('បណ្ដោះអាសន្ន'),
+                selected: isTemporary,
+                onSelected: (_) => setState(() => isTemporary = true),
+              ),
+              ChoiceChip(
+                label: const Text('អចិន្ត្រៃយ៍'),
+                selected: !isTemporary,
+                onSelected: (_) => setState(() => isTemporary = false),
+              ),
+            ],
+          ),
+          Text(
+            isTemporary
+                ? 'គំរូនេះនឹងទៅបណ្ណសារបន្ទាប់ពីចាត់ព្រះសង្ឃទៅបុណ្យ។'
+                : 'គំរូនេះនឹងរក្សាទុករហូតដល់អ្នកលុបវា។',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
           DropdownButtonFormField<String?>(
             initialValue: role.isEmpty ? null : role,
             isExpanded: true,
@@ -261,40 +430,65 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<int?>(
-            initialValue:
-                s.leaders.any((l) => l['id'] == leaderId) ? leaderId : null,
-            hint: const Text('ជ្រើសរើសអាចារ្យ...'),
-            decoration: const InputDecoration(
-                labelText: 'អាចារ្យ', border: OutlineInputBorder()),
-            items: [
-              const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('គ្មានអាចារ្យ',
-                      style: TextStyle(color: Colors.grey))),
-              for (final l in s.leaders)
-                DropdownMenuItem<int?>(
-                    value: l['id'] as int, child: Text(l['name'])),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int?>(
+                  key: ValueKey(leaderId),
+                  initialValue: s.leaders.any((l) => l['id'] == leaderId)
+                      ? leaderId
+                      : null,
+                  hint: const Text('ជ្រើសរើសអាចារ្យ...'),
+                  decoration: const InputDecoration(
+                      labelText: 'អាចារ្យ', border: OutlineInputBorder()),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('គ្មានអាចារ្យ',
+                            style: TextStyle(color: Colors.grey))),
+                    for (final l in s.leaders)
+                      DropdownMenuItem<int?>(
+                          value: l['id'] as int, child: Text(l['name'])),
+                  ],
+                  onChanged: (v) => setState(() => leaderId = v),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline),
+                tooltip: 'បន្ថែមអាចារ្យថ្មី',
+                onPressed: () => _addLeader(s),
+              ),
             ],
-            onChanged: (v) => setState(() => leaderId = v),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String?>(
-            initialValue:
-                s.places.any((x) => x['name'] == place) ? place : null,
-            hint: const Text('ជ្រើសរើសទីតាំង...'),
-            decoration: const InputDecoration(
-                labelText: 'ទីតាំង', border: OutlineInputBorder()),
-            items: [
-              const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('គ្មានទីតាំង',
-                      style: TextStyle(color: Colors.grey))),
-              for (final x in s.places)
-                DropdownMenuItem<String?>(
-                    value: x['name'] as String, child: Text(x['name'])),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  key: ValueKey(place),
+                  initialValue:
+                      s.places.any((x) => x['name'] == place) ? place : null,
+                  hint: const Text('ជ្រើសរើសទីតាំង...'),
+                  decoration: const InputDecoration(
+                      labelText: 'ទីតាំង', border: OutlineInputBorder()),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('គ្មានទីតាំង',
+                            style: TextStyle(color: Colors.grey))),
+                    for (final x in s.places)
+                      DropdownMenuItem<String?>(
+                          value: x['name'] as String, child: Text(x['name'])),
+                  ],
+                  onChanged: (v) => setState(() => place = v),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline),
+                tooltip: 'បន្ថែមទីតាំងថ្មី',
+                onPressed: () => _addPlace(s),
+              ),
             ],
-            onChanged: (v) => setState(() => place = v),
           ),
           const SizedBox(height: 12),
           TextField(

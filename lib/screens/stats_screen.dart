@@ -191,7 +191,11 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget build(BuildContext context) {
     final roles = context.watch<AppState>().roles;
     var list = rows
-        .where((x) => roleFilter == null || x['role'] == roleFilter)
+        .where((x) =>
+            roleFilter == null ||
+            (roleFilter == 'ភិក្ខុ'
+                ? isBhikkhuRole(x['role'])
+                : x['role'] == roleFilter))
         .where((x) => directFilter == null || _countFor(x) > 0)
         .toList();
     switch (sort) {

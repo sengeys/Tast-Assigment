@@ -8,7 +8,7 @@ class Db {
 
   static Future<Database> _open() async {
     final path = p.join(await getDatabasesPath(), 'task_assign.db');
-    return openDatabase(path, version: 6, onUpgrade: (d, oldV, newV) async {
+    return openDatabase(path, version: 8, onUpgrade: (d, oldV, newV) async {
       if (oldV < 5) {
         await d.execute('ALTER TABLE templates ADD COLUMN note TEXT');
       }
@@ -46,6 +46,15 @@ class Db {
         await d.execute(
             'ALTER TABLE task_staff ADD COLUMN direct INTEGER NOT NULL DEFAULT 0');
       }
+      if (oldV < 7) {
+        await d.execute(
+            'ALTER TABLE templates ADD COLUMN is_temporary INTEGER NOT NULL DEFAULT 0');
+        await d.execute(
+            'ALTER TABLE templates ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+      }
+      if (oldV < 8) {
+        await d.execute('ALTER TABLE templates ADD COLUMN task_date TEXT');
+      }
     }, onCreate: (d, v) async {
       await d.execute('CREATE TABLE staff('
           'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT, phone TEXT, age INTEGER)');
@@ -55,7 +64,9 @@ class Db {
           'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)');
       await d.execute('CREATE TABLE templates('
           'id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, role TEXT, '
-          'start_time TEXT, end_time TEXT, leader_id INTEGER, place TEXT, note TEXT)');
+          'start_time TEXT, end_time TEXT, leader_id INTEGER, place TEXT, note TEXT, '
+          'is_temporary INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0, '
+          'task_date TEXT)');
       await d.execute('CREATE TABLE task_history('
           'id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, task_date TEXT, '
           'staff_names TEXT, leader TEXT, place TEXT, message TEXT, created_at TEXT, '

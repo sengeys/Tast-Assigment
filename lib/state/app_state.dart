@@ -109,7 +109,8 @@ class AppState extends ChangeNotifier {
     note = (t?['note'] ?? '').toString();
     selected.clear();
     directInvites.clear();
-    date = DateTime.now();
+    date = DateTime.tryParse((t?['task_date'] ?? '').toString()) ??
+        DateTime.now();
     start = parseTime(t?['start_time']);
     end = parseTime(t?['end_time']);
     leaderId = t?['leader_id'];
@@ -135,6 +136,9 @@ class AppState extends ChangeNotifier {
       'leader_id': leaderId,
       'place': place ?? '',
       'note': note.trim(),
+      'is_temporary': 0,
+      'archived': 0,
+      'task_date': DateFormat('yyyy-MM-dd').format(date),
     });
     await load();
   }
@@ -280,27 +284,41 @@ class AppState extends ChangeNotifier {
       'start_min': sMin,
       'end_min': eMin,
     };
-    final int hid;
-    if (editingId == null) {
-      hid = await db.insert('task_history',
-          {...row, 'created_at': DateTime.now().toIso8601String()});
-    } else {
-      hid = editingId!;
-      await db.update('task_history', row, where: 'id = ?', whereArgs: [hid]);
-      await db.delete('task_staff', where: 'history_id = ?', whereArgs: [hid]);
-    }
+    final templateId = template?['id'];
+    final archiveTemporary = template?['is_temporary'] == 1 &&
+        template?['archived'] != 1 &&
+        templateId is int;
+    await db.transaction((txn) async {
+      final int hid;
+      if (editingId == null) {
+        hid = await txn.insert('task_history',
+            {...row, 'created_at': DateTime.now().toIso8601String()});
+      } else {
+        hid = editingId!;
+        await txn.update('task_history', row, where: 'id = ?', whereArgs: [hid]);
+        await txn.delete('task_staff', where: 'history_id = ?', whereArgs: [hid]);
+      }
+      for (final x in staff.where((x) => selected.contains(x['id']))) {
+        await txn.insert('task_staff', {
+          'history_id': hid,
+          'staff_id': x['id'],
+          'staff_name': x['name'],
+          'task_date': _dateStr,
+          'start_min': sMin,
+          'end_min': eMin,
+          'direct': directInvites.contains(x['id']) ? 1 : 0,
+        });
+      }
+      if (archiveTemporary) {
+        await txn.update(
+          'templates',
+          {'archived': 1},
+          where: 'id = ? AND is_temporary = 1 AND archived = 0',
+          whereArgs: [templateId],
+        );
+      }
+    });
     editingId = null;
-    for (final x in staff.where((x) => selected.contains(x['id']))) {
-      await db.insert('task_staff', {
-        'history_id': hid,
-        'staff_id': x['id'],
-        'staff_name': x['name'],
-        'task_date': _dateStr,
-        'start_min': sMin,
-        'end_min': eMin,
-        'direct': directInvites.contains(x['id']) ? 1 : 0,
-      });
-    }
     await load();
     await NotificationService.instance.rescheduleAll();
     return true;
