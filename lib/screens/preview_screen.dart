@@ -40,12 +40,35 @@ class PreviewScreen extends StatelessWidget {
                       ? 'Copy សារ និងរក្សាទុកប្រវត្តិ'
                       : 'Copy សារ និងរក្សាទុកការកែប្រែ'),
                   onPressed: () async {
+                    if (s.preachDharma && s.selectedPreachers.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'សូមជ្រើសរើសព្រះសង្ឃសម្រាប់សម្ដែងធម្មទេសនា',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (s.preceptsType != null &&
+                        s.selectedPreceptGivers.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'សូមជ្រើសរើសព្រះសង្ឃសម្រាប់ប្រទានសីល',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     final ok = await s.copyAndSave();
                     if (!context.mounted) return;
                     if (!ok) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content:
-                              Text('មានបុគ្គលិកជាន់ពេលគ្នា — មិនបានរក្សាទុក')));
+                        content: Text(
+                          'ព្រះសង្ឃ ឬអាចារ្យជាន់ពេលគ្នា — មិនបានរក្សាទុក',
+                        ),
+                      ));
                       return;
                     }
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

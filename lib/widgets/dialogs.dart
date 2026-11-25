@@ -99,11 +99,18 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
     String role = '',
     String phone = '',
     String age = '',
+    String status = '',
     List<String> roleOptions = const [],
+    List<String> statusOptions = const [],
     bool isStaff = false,
     bool includeAgeAndPhone = true}) {
   final n = TextEditingController(text: name);
   String roleValue = role; // '' = មិនទាន់ជ្រើសរើស
+  String statusValue = statusOptions.contains(status)
+      ? status
+      : statusOptions.isEmpty
+          ? ''
+          : statusOptions.first;
   final p = TextEditingController(text: formatPhoneNumber(phone));
   final a = TextEditingController(text: age);
   return showDialog<Map<String, String>>(
@@ -159,6 +166,22 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
                       labelText: 'លេខទូរស័ព្ទ', border: OutlineInputBorder())),
             ],
           ],
+          if (statusOptions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: statusValue,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'ស្ថានភាព',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final option in statusOptions)
+                  DropdownMenuItem(value: option, child: Text(option)),
+              ],
+              onChanged: (value) => statusValue = value ?? statusValue,
+            ),
+          ],
         ]),
       ),
       actions: [
@@ -172,7 +195,8 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
               'name': n.text.trim(),
               'role': roleValue,
               'phone': p.text.trim(),
-              'age': a.text.trim()
+              'age': a.text.trim(),
+              'status': statusValue,
             });
           },
           child: const Text('រក្សាទុក'),

@@ -4,10 +4,11 @@ import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
 import '../core/roles.dart';
+import '../core/statuses.dart';
 import '../data/db.dart';
 import '../state/app_state.dart';
 import '../widgets/dialogs.dart';
-import 'details_screen.dart';
+import 'assignment_extras_screen.dart';
 
 // ---------------- 2. Staff selection ----------------
 class StaffSelectScreen extends StatefulWidget {
@@ -30,14 +31,28 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
       initialized = true;
     }
     final list = s.staff.where((x) {
+      final eligible = canAttendWithMonks(x['status']);
+      final available = !s.busyStaffIds.contains(x['id']);
       final okRole = roleFilter == null || x['role'] == roleFilter;
       final okName = query.isEmpty || (x['name'] as String).contains(query);
-      return okRole && okName;
+      return eligible && available && okRole && okName;
     }).toList();
 
     return Scaffold(
-      appBar:
-          AppBar(title: Text('ជ្រើសរើសព្រះសង្ឃ (${kh(s.selected.length)})')),
+      appBar: AppBar(
+        title: Text('ជ្រើសរើសព្រះសង្ឃ (${kh(s.selected.length)})'),
+        actions: [
+          if (s.selected.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear_all),
+              tooltip: 'ដោះជ្រើសរើសទាំងអស់',
+              onPressed: () => s.update(() {
+                s.selected.clear();
+                s.directInvites.clear();
+              }),
+            ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -61,6 +76,13 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                   child: ChoiceChip(
                       label: const Text('ទាំងអស់'),
                       selected: roleFilter == null,
+                      side: s.usesCustomOrangeTheme
+                          ? BorderSide(
+                              color: roleFilter == null
+                                  ? const Color(0xFFFFECDF)
+                                  : const Color(0xFFFF7643),
+                            )
+                          : null,
                       onSelected: (_) => setState(() => roleFilter = null)),
                 ),
                 for (final r in s.roles)
@@ -69,36 +91,151 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                     child: ChoiceChip(
                         label: Text(r),
                         selected: roleFilter == r,
+                        side: s.usesCustomOrangeTheme
+                            ? BorderSide(
+                                color: roleFilter == r
+                                    ? const Color(0xFFFFECDF)
+                                    : const Color(0xFFFF7643),
+                              )
+                            : null,
                         onSelected: (_) => setState(() => roleFilter = r)),
                   ),
               ],
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 120),
+            child: Stack(
               children: [
-                for (final x in list)
-                  CheckboxListTile(
-                    value: s.selected.contains(x['id']),
-                    onChanged: (_) => s.toggle(x['id']),
-                    title: Text(x['name']),
-                    subtitle: Text([
-                      x['role'],
-                    ]
-                        .where((e) => e != null && e.toString().isNotEmpty)
-                        .join(' • ')),
+                Positioned.fill(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(top: 8, bottom: 120),
+                    itemCount: list.length,
+                    itemBuilder: (context, index) {
+                      final staff = list[index];
+                      final selected = s.selected.contains(staff['id']);
+                      final colors = Theme.of(context).colorScheme;
+                      final borderRadius = BorderRadius.circular(12);
+                      final role = (staff['role'] ?? '').toString();
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F6F9),
+                          borderRadius: borderRadius,
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: borderRadius,
+                          child: InkWell(
+                            borderRadius: borderRadius,
+                            onTap: () => s.toggle(staff['id'] as int),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: selected,
+                                    shape: const CircleBorder(),
+                                    activeColor: colors.primary,
+                                    side: BorderSide(color: colors.primary),
+                                    onChanged: (_) =>
+                                        s.toggle(staff['id'] as int),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          (staff['name'] ?? '').toString(),
+                                          style: const TextStyle(
+                                            color: Color(0xFF757575),
+                                          ),
+                                        ),
+                                        if (role.isNotEmpty) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            role,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 16 + MediaQuery.of(context).padding.bottom,
+                  child: IgnorePointer(
+                    child: SizedBox(
+                      height: 100,
+                      child: Container(
+                        color: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        alignment: Alignment.bottomLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Color.lerp(
+                              Colors.white,
+                              Theme.of(context).colorScheme.primaryContainer,
+                              0.45,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.groups_outlined,
+                                size: 18,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'សរុបមានចំនួន ${kh(list.length)} អង្គ',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          SizedBox(
-              height: 50,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                alignment: Alignment.centerLeft,
-                child: Text('សរុបមានចំនួន ${kh(list.length)} អង្គ'),
-              )),
         ],
       ),
       floatingActionButton: Column(
@@ -117,6 +254,7 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                   ...roleOrder,
                   ...s.roles.where((role) => !roleOrder.contains(role)),
                 ],
+                statusOptions: monkStatuses,
                 isStaff: true,
                 includeAgeAndPhone: false,
               );
@@ -125,6 +263,7 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                 'name': value['name'],
                 'role': value['role'],
                 'phone': '',
+                'status': value['status'],
               });
               await s.load();
             },
@@ -137,7 +276,8 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
             onPressed: s.selected.isEmpty
                 ? null
                 : () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const DetailsScreen())),
+                    MaterialPageRoute(
+                        builder: (_) => const AssignmentExtrasScreen())),
           ),
         ],
       ),

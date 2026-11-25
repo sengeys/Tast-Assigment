@@ -40,6 +40,7 @@ class NotificationService {
   static const _enabledKey = 'taskNotificationsEnabled';
   static const _leadMinutesKey = 'taskNotificationLeadMinutes';
   static const _inboxKey = 'notificationInbox';
+  static const _pendingInboxKey = 'pendingNotificationInbox';
   static const _leadMinuteOptions = {0, 5, 10, 15, 30, 60};
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -54,7 +55,7 @@ class NotificationService {
 
   Future<void> initialize({void Function()? onNotificationTap}) async {
     if (_initialized) return;
-    inboxCount.value = (await loadInbox()).length;
+    await reconcileDueNotifications();
     if (!_supportsScheduledNotifications) {
       _initialized = true;
       return;
@@ -93,6 +94,93 @@ class NotificationService {
     inboxCount.value = 0;
   }
 
+  Future<void> markInboxEntryRead(String id) async {
+    final inbox = await loadInbox();
+    final index = inbox.indexWhere((entry) => entry['id']?.toString() == id);
+    if (index == -1 || inbox[index]['isRead'] == true) return;
+    inbox[index]['isRead'] = true;
+    await _saveInbox(inbox);
+  }
+
+  Future<void> reconcileDueNotifications() async {
+    final pending =
+        await _preferences.getStringList(_pendingInboxKey) ?? const [];
+    final future = <String>[];
+    final inbox = await loadInbox();
+    final knownIds = inbox.map((entry) => entry['id']?.toString()).toSet();
+    final now = DateTime.now();
+    var pendingChanged = false;
+    var inboxChanged = false;
+
+    for (final item in pending) {
+      final notification = jsonDecode(item);
+      if (notification is! Map<String, dynamic>) {
+        pendingChanged = true;
+        continue;
+      }
+      final scheduledAt =
+          DateTime.tryParse((notification['scheduledAt'] ?? '').toString());
+      if (scheduledAt == null) {
+        pendingChanged = true;
+        continue;
+      }
+      if (scheduledAt.isAfter(now)) {
+        future.add(item);
+        continue;
+      }
+
+      pendingChanged = true;
+      final id = (notification['id'] ?? '').toString();
+      if (id.isNotEmpty && knownIds.add(id)) {
+        inbox.insert(0, {
+          'id': id,
+          'title': (notification['title'] ?? '').toString(),
+          'body': (notification['body'] ?? '').toString(),
+          'receivedAt': scheduledAt.toIso8601String(),
+          'isRead': false,
+        });
+        inboxChanged = true;
+      }
+    }
+
+    if (pendingChanged) {
+      await _preferences.setStringList(_pendingInboxKey, future);
+    }
+    if (inbox.length > 100) {
+      inbox.removeRange(100, inbox.length);
+      inboxChanged = true;
+    }
+    if (inboxChanged) {
+      await _saveInbox(inbox);
+    } else {
+      _updateInboxCount(inbox);
+    }
+  }
+
+  Future<void> _saveInbox(List<Map<String, dynamic>> inbox) async {
+    await _preferences.setStringList(
+      _inboxKey,
+      inbox.map(jsonEncode).toList(),
+    );
+    _updateInboxCount(inbox);
+  }
+
+  void _updateInboxCount(List<Map<String, dynamic>> inbox) {
+    inboxCount.value = inbox.where((entry) => entry['isRead'] != true).length;
+  }
+
+  Future<void> _recordInboxEntry(Map<String, dynamic> entry) async {
+    final inbox = await loadInbox();
+    final id = entry['id']?.toString();
+    if (!inbox.any((item) => item['id']?.toString() == id)) {
+      inbox.insert(0, entry);
+      if (inbox.length > 100) inbox.removeRange(100, inbox.length);
+      await _saveInbox(inbox);
+    } else {
+      _updateInboxCount(inbox);
+    }
+  }
+
   Future<void> _handleNotificationResponse(
     NotificationResponse response,
     void Function()? onNotificationTap,
@@ -122,21 +210,15 @@ class NotificationService {
       if (place.isNotEmpty) place,
     ];
     final entry = <String, dynamic>{
-      'id': DateTime.now().microsecondsSinceEpoch.toString(),
+      'id': (response.id ?? DateTime.now().microsecondsSinceEpoch).toString(),
       'title': historyItem == null
           ? 'Notification'
           : '${isEarlyReminder ? 'ជិតដល់ម៉ោង' : 'ដល់ម៉ោង'}: ${historyItem['title']}',
       'body': details.join(' • '),
       'receivedAt': DateTime.now().toIso8601String(),
+      'isRead': false,
     };
-    final inbox = await loadInbox();
-    inbox.insert(0, entry);
-    if (inbox.length > 100) inbox.removeRange(100, inbox.length);
-    await _preferences.setStringList(
-      _inboxKey,
-      inbox.map(jsonEncode).toList(),
-    );
-    inboxCount.value = inbox.length;
+    await _recordInboxEntry(entry);
     onNotificationTap?.call();
   }
 
@@ -213,7 +295,9 @@ class NotificationService {
   Future<void> rescheduleAll() async {
     if (!_supportsScheduledNotifications) return;
     await initialize();
+    await reconcileDueNotifications();
     await _plugin.cancelAllPendingNotifications();
+    await _preferences.setStringList(_pendingInboxKey, const []);
 
     final settings = await loadSettings();
     if (!settings.enabled) return;
@@ -299,18 +383,42 @@ class NotificationService {
       iOS: DarwinNotificationDetails(),
     );
 
+    final notificationId = historyId * 2 + (isEarlyReminder ? 0 : 1);
+    final notificationTitle = isEarlyReminder
+        ? 'ជិតដល់ម៉ោង: $displayTitle'
+        : 'ដល់ម៉ោង: $displayTitle';
+    final notificationBody = isEarlyReminder
+        ? 'នឹងចាប់ផ្ដើមនៅម៉ោង $time ក្នុង ${kh(leadMinutes)} នាទីទៀត$placeText'
+        : 'ដល់ពេលចាប់ផ្ដើមហើយ ($time)$placeText';
     await _plugin.zonedSchedule(
-      id: historyId * 2 + (isEarlyReminder ? 0 : 1),
-      title: isEarlyReminder
-          ? 'ជិតដល់ម៉ោង: $displayTitle'
-          : 'ដល់ម៉ោង: $displayTitle',
-      body: isEarlyReminder
-          ? 'នឹងចាប់ផ្ដើមនៅម៉ោង $time ក្នុង ${kh(leadMinutes)} នាទីទៀត$placeText'
-          : 'ដល់ពេលចាប់ផ្ដើមហើយ ($time)$placeText',
+      id: notificationId,
+      title: notificationTitle,
+      body: notificationBody,
       scheduledDate: timezone.TZDateTime.from(scheduledAt, timezone.local),
       notificationDetails: details,
       androidScheduleMode: scheduleMode,
       payload: historyId.toString(),
+    );
+    await _addPendingInboxEntry({
+      'id': notificationId.toString(),
+      'title': notificationTitle,
+      'body': notificationBody,
+      'scheduledAt': scheduledAt.toIso8601String(),
+    });
+  }
+
+  Future<void> _addPendingInboxEntry(Map<String, dynamic> entry) async {
+    final pending =
+        await _preferences.getStringList(_pendingInboxKey) ?? const [];
+    final entries = pending
+        .map((item) => jsonDecode(item))
+        .whereType<Map<String, dynamic>>()
+        .where((item) => item['id']?.toString() != entry['id']?.toString())
+        .toList()
+      ..add(entry);
+    await _preferences.setStringList(
+      _pendingInboxKey,
+      entries.map(jsonEncode).toList(),
     );
   }
 }

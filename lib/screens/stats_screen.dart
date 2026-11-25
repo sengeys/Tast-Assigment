@@ -25,7 +25,7 @@ const _khMonths = [
   'ធ្នូ'
 ];
 
-enum StatPeriod { day, month, year }
+enum StatPeriod { day, month, year, all }
 
 enum StatSort { most, least, name }
 
@@ -57,7 +57,7 @@ class _StatsScreenState extends State<StatsScreen> {
     _load();
   }
 
-  (String, String) get range {
+  (String?, String?) get range {
     final f = DateFormat('yyyy-MM-dd');
     switch (period) {
       case StatPeriod.day:
@@ -73,6 +73,8 @@ class _StatsScreenState extends State<StatsScreen> {
           f.format(DateTime(anchor.year, 1, 1)),
           f.format(DateTime(anchor.year, 12, 31))
         );
+      case StatPeriod.all:
+        return (null, null);
     }
   }
 
@@ -84,6 +86,8 @@ class _StatsScreenState extends State<StatsScreen> {
         return 'ខែ${_khMonths[anchor.month - 1]} ឆ្នាំ${kh(anchor.year)}';
       case StatPeriod.year:
         return 'ឆ្នាំ ${kh(anchor.year)}';
+      case StatPeriod.all:
+        return 'ទាំងអស់';
     }
   }
 
@@ -95,6 +99,8 @@ class _StatsScreenState extends State<StatsScreen> {
         anchor = DateTime(anchor.year, anchor.month + dir, 1);
       case StatPeriod.year:
         anchor = DateTime(anchor.year + dir, anchor.month, 1);
+      case StatPeriod.all:
+        return;
     }
     _load();
   }
@@ -104,16 +110,33 @@ class _StatsScreenState extends State<StatsScreen> {
     final r = range;
     final db = await Db.instance;
     final data = await db.rawQuery(
-        'SELECT s.id, s.name, s.role, COUNT(ts.id) AS c, '
-        'SUM(CASE WHEN ts.direct = 1 THEN 1 ELSE 0 END) AS direct_c, '
-        'SUM(CASE WHEN ts.id IS NOT NULL AND COALESCE(ts.direct, 0) = 0 '
+        'WITH participation AS ('
+        'SELECT history_id, staff_id, COALESCE(direct, 0) AS direct '
+        'FROM task_staff '
+        'UNION ALL '
+        'SELECT history_id, staff_id, 0 AS direct FROM task_preachers '
+        'UNION ALL '
+        'SELECT history_id, staff_id, 0 AS direct FROM task_precept_givers'
+        '), attendance AS ('
+        'SELECT history_id, staff_id, MAX(direct) AS direct '
+        'FROM participation GROUP BY history_id, staff_id'
+        ') '
+        'SELECT s.id, s.name, s.role, COUNT(h.id) AS c, '
+        'SUM(CASE WHEN h.id IS NOT NULL AND a.direct = 1 '
+        'THEN 1 ELSE 0 END) AS direct_c, '
+        'SUM(CASE WHEN h.id IS NOT NULL AND a.direct = 0 '
         'THEN 1 ELSE 0 END) AS indirect_c FROM staff s '
-        'LEFT JOIN task_staff ts ON ts.staff_id = s.id AND ts.task_date BETWEEN ? AND ? '
+        'LEFT JOIN attendance a ON a.staff_id = s.id '
+        'LEFT JOIN task_history h ON h.id = a.history_id '
+        'AND h.task_date IS NOT NULL '
+        'AND (? IS NULL OR h.task_date BETWEEN ? AND ?) '
         'GROUP BY s.id',
-        [r.$1, r.$2]);
+        [r.$1, r.$1, r.$2]);
     final t = await db.rawQuery(
-        'SELECT COUNT(*) AS c FROM task_history WHERE task_date BETWEEN ? AND ?',
-        [r.$1, r.$2]);
+        'SELECT COUNT(*) AS c FROM task_history '
+        'WHERE task_date IS NOT NULL '
+        'AND (? IS NULL OR task_date BETWEEN ? AND ?)',
+        [r.$1, r.$1, r.$2]);
     if (!mounted) return;
     setState(() {
       rows = data;
@@ -127,14 +150,27 @@ class _StatsScreenState extends State<StatsScreen> {
     final filterValue = directFilter == null ? null : (directFilter! ? 1 : 0);
     final db = await Db.instance;
     final d = await db.rawQuery(
-        'SELECT h.title, h.place, ts.task_date, ts.start_min, ts.end_min, ts.direct '
-        'FROM task_staff ts '
-        'JOIN task_history h ON h.id = ts.history_id '
-        'WHERE ts.staff_id = ? AND ts.task_date BETWEEN ? AND ? '
-        'AND (? IS NULL OR COALESCE(ts.direct, 0) = ?) '
-        'ORDER BY ts.task_date DESC, ts.start_min DESC',
+        'WITH participation AS ('
+        'SELECT history_id, staff_id, COALESCE(direct, 0) AS direct '
+        'FROM task_staff '
+        'UNION ALL '
+        'SELECT history_id, staff_id, 0 AS direct FROM task_preachers '
+        'UNION ALL '
+        'SELECT history_id, staff_id, 0 AS direct FROM task_precept_givers'
+        '), attendance AS ('
+        'SELECT history_id, staff_id, MAX(direct) AS direct '
+        'FROM participation GROUP BY history_id, staff_id'
+        ') '
+        'SELECT h.title, h.place, h.task_date, h.start_min, h.end_min, a.direct '
+        'FROM attendance a '
+        'JOIN task_history h ON h.id = a.history_id '
+        'WHERE a.staff_id = ? AND h.task_date IS NOT NULL '
+        'AND (? IS NULL OR h.task_date BETWEEN ? AND ?) '
+        'AND (? IS NULL OR a.direct = ?) '
+        'ORDER BY h.task_date DESC, h.start_min DESC',
         [
           row['id'],
+          r.$1,
           r.$1,
           r.$2,
           filterValue,
@@ -189,7 +225,9 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final roles = context.watch<AppState>().roles;
+    final appState = context.watch<AppState>();
+    final roles = appState.roles;
+    final usesCustomOrangeTheme = appState.usesCustomOrangeTheme;
     var list = rows
         .where((x) =>
             roleFilter == null ||
@@ -232,6 +270,7 @@ class _StatsScreenState extends State<StatsScreen> {
                 ButtonSegment(value: StatPeriod.month, label: Text('ប្រចាំខែ')),
                 ButtonSegment(
                     value: StatPeriod.year, label: Text('ប្រចាំឆ្នាំ')),
+                ButtonSegment(value: StatPeriod.all, label: Text('ទាំងអស់')),
               ],
               selected: {period},
               onSelectionChanged: (v) {
@@ -240,31 +279,39 @@ class _StatsScreenState extends State<StatsScreen> {
               },
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: () => _shift(-1)),
-              TextButton(
-                onPressed: () async {
-                  final d = await showDatePicker(
-                      context: context,
-                      initialDate: anchor,
-                      firstDate: DateTime(2024),
-                      lastDate: DateTime(2100));
-                  if (d != null) {
-                    anchor = d;
-                    _load();
-                  }
-                },
+          if (period == StatPeriod.all)
+            SizedBox(
+              height: 48,
+              child: Center(
                 child: Text(label, style: const TextStyle(fontSize: 16)),
               ),
-              IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: () => _shift(1)),
-            ],
-          ),
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () => _shift(-1)),
+                TextButton(
+                  onPressed: () async {
+                    final d = await showDatePicker(
+                        context: context,
+                        initialDate: anchor,
+                        firstDate: DateTime(2024),
+                        lastDate: DateTime(2100));
+                    if (d != null) {
+                      anchor = d;
+                      _load();
+                    }
+                  },
+                  child: Text(label, style: const TextStyle(fontSize: 16)),
+                ),
+                IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () => _shift(1)),
+              ],
+            ),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 12),
             child: Padding(
@@ -304,6 +351,13 @@ class _StatsScreenState extends State<StatsScreen> {
                     child: ChoiceChip(
                         label: Text(e.value),
                         selected: sort == e.key,
+                        side: appState.usesCustomOrangeTheme
+                            ? BorderSide(
+                                color: sort == e.key
+                                    ? const Color(0xFFFFECDF)
+                                    : const Color(0xFFFF7643),
+                              )
+                            : null,
                         onSelected: (_) => setState(() => sort = e.key)),
                   ),
               ],
@@ -325,6 +379,13 @@ class _StatsScreenState extends State<StatsScreen> {
                     child: ChoiceChip(
                       label: Text(entry.$2),
                       selected: directFilter == entry.$1,
+                      side: appState.usesCustomOrangeTheme
+                          ? BorderSide(
+                              color: directFilter == entry.$1
+                                  ? const Color(0xFFFFECDF)
+                                  : const Color(0xFFFF7643),
+                            )
+                          : null,
                       onSelected: (_) =>
                           setState(() => directFilter = entry.$1),
                     ),
@@ -343,6 +404,13 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: ChoiceChip(
                       label: const Text('ទាំងអស់'),
                       selected: roleFilter == null,
+                      side: appState.usesCustomOrangeTheme
+                          ? BorderSide(
+                              color: roleFilter == null
+                                  ? const Color(0xFFFFECDF)
+                                  : const Color(0xFFFF7643),
+                            )
+                          : null,
                       onSelected: (_) => setState(() => roleFilter = null)),
                 ),
                 for (final r in roles)
@@ -351,6 +419,13 @@ class _StatsScreenState extends State<StatsScreen> {
                     child: ChoiceChip(
                         label: Text(r),
                         selected: roleFilter == r,
+                        side: appState.usesCustomOrangeTheme
+                            ? BorderSide(
+                                color: roleFilter == r
+                                    ? const Color(0xFFFFECDF)
+                                    : const Color(0xFFFF7643),
+                              )
+                            : null,
                         onSelected: (_) => setState(() => roleFilter = r)),
                   ),
               ],
@@ -370,11 +445,24 @@ class _StatsScreenState extends State<StatsScreen> {
                               sort == StatSort.most && i == 0 && c > 0;
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: isTop ? Colors.amber : null,
+                              backgroundColor: usesCustomOrangeTheme
+                                  ? const Color(0xFFFFECDF)
+                                  : (isTop ? Colors.amber : null),
                               child: isTop
-                                  ? const Icon(Icons.emoji_events,
-                                      color: Colors.white)
-                                  : Text(kh(i + 1)),
+                                  ? Icon(
+                                      Icons.emoji_events,
+                                      color: usesCustomOrangeTheme
+                                          ? const Color(0xFFFF7643)
+                                          : Colors.white,
+                                    )
+                                  : Text(
+                                      kh(i + 1),
+                                      style: TextStyle(
+                                        color: usesCustomOrangeTheme
+                                            ? const Color(0xFF000000)
+                                            : null,
+                                      ),
+                                    ),
                             ),
                             title: Text(formatStaffName(x)),
                             subtitle: Padding(

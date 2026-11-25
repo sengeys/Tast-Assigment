@@ -4,10 +4,11 @@ import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
 import '../core/khmer_lunar.dart';
+import '../core/statuses.dart';
 import '../data/db.dart';
 import '../state/app_state.dart';
 import '../widgets/dialogs.dart';
-import 'preview_screen.dart';
+import 'staff_select_screen.dart';
 
 // ---------------- 3. Details form ----------------
 class DetailsScreen extends StatelessWidget {
@@ -16,6 +17,8 @@ class DetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
+    final eligibleLeaders =
+        s.leaders.where((leader) => canAttendAsLeader(leader['status']));
     return Scaffold(
       appBar: AppBar(title: const Text('ពេលវេលា និង ទីតាំង')),
       body: ListView(
@@ -66,9 +69,10 @@ class DetailsScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: DropdownButtonFormField<int?>(
-                  initialValue: s.leaders.any((l) => l['id'] == s.leaderId)
-                      ? s.leaderId
-                      : null,
+                  initialValue:
+                      eligibleLeaders.any((l) => l['id'] == s.leaderId)
+                          ? s.leaderId
+                          : null,
                   hint: const Text('ជ្រើសរើសអាចារ្យ...'),
                   decoration: const InputDecoration(
                       labelText: 'អាចារ្យ', border: OutlineInputBorder()),
@@ -77,7 +81,7 @@ class DetailsScreen extends StatelessWidget {
                         value: null,
                         child: Text('គ្មានអាចារ្យ',
                             style: TextStyle(color: Colors.grey))),
-                    for (final x in s.leaders)
+                    for (final x in eligibleLeaders)
                       DropdownMenuItem<int?>(
                           value: x['id'] as int, child: Text(x['name'])),
                   ],
@@ -147,23 +151,6 @@ class DetailsScreen extends StatelessWidget {
                 border: OutlineInputBorder()),
             onChanged: (v) => s.note = v,
           ),
-          if (s.selected.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Divider(),
-            const ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text('ជ្រើសរើសព្រះសង្ឃដែលនិមន្តផ្ទាល់'),
-              subtitle: Text('ទៅជាមួយដែរ តែក្រៅផ្លូវការ'),
-            ),
-            for (final x
-                in s.staff.where((x) => s.selected.contains(x['id'])))
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: s.directInvites.contains(x['id']),
-                onChanged: (_) => s.toggleDirectInvite(x['id']),
-                title: Text(x['name']),
-              ),
-          ],
           const SizedBox(height: 16),
           OutlinedButton.icon(
             icon: const Icon(Icons.bookmark_add_outlined),
@@ -180,16 +167,16 @@ class DetailsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            icon: const Icon(Icons.preview),
-            label: const Text('មើលសារ'),
-            onPressed: () => _goPreview(context, s),
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('បន្ទាប់: ជ្រើសរើសព្រះសង្ឃ'),
+            onPressed: () => _goSelectMonks(context, s),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _goPreview(BuildContext context, AppState s) async {
+  Future<void> _goSelectMonks(BuildContext context, AppState s) async {
     final messenger = ScaffoldMessenger.of(context);
     if (s.start == null || s.end == null) {
       messenger.showSnackBar(
@@ -202,43 +189,57 @@ class DetailsScreen extends StatelessWidget {
           const SnackBar(content: Text('ម៉ោងបញ្ចប់ត្រូវនៅក្រោយម៉ោងចាប់ផ្តើម')));
       return;
     }
-    final conflicts = await s.findConflicts();
+    final leaderConflicts = await s.findLeaderConflicts();
     if (!context.mounted) return;
-    if (conflicts.isNotEmpty) {
+    if (leaderConflicts.isNotEmpty) {
       String range(Map<String, dynamic> c) {
         final a = c['start_min'] as int, b = c['end_min'] as int;
         return '${khTime(TimeOfDay(hour: a ~/ 60, minute: a % 60))} - '
             '${khTime(TimeOfDay(hour: b ~/ 60, minute: b % 60))}';
       }
 
-      final goBack = await showDialog<bool>(
+      await showDialog<void>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           icon: const Icon(Icons.warning_amber, color: Colors.orange),
-          title: const Text('ព្រះសង្ឃជាន់ពេលគ្នា'),
+          title: const Text('អាចារ្យជាន់ពេលគ្នា'),
           content: SingleChildScrollView(
             child: Text([
-              'ព្រះសង្ឃខាងក្រោមមានបុណ្យផ្សេងនៅថ្ងៃនេះរួចហើយ៖',
+              'អាចារ្យដែលបានជ្រើសរើសមានបុណ្យផ្សេងនៅថ្ងៃនេះរួចហើយ៖',
               '',
-              for (final c in conflicts)
-                '• ${c['staff_name']} — ${c['title']} (${range(c)})',
+              for (final c in leaderConflicts) '• ${c['title']} (${range(c)})',
             ].join('\n')),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('កែម៉ោង')),
-            FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('ជ្រើសព្រះសង្ឃថ្មី')),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('បិទ'),
+            ),
           ],
         ),
       );
-      if (goBack == true && context.mounted) Navigator.pop(context);
       return;
     }
+    await s.refreshBusyStaffIds();
+    if (!context.mounted) return;
+    final removedCount = s.selected.where(s.busyStaffIds.contains).length;
+    s.update(() {
+      s.selected.removeWhere(s.busyStaffIds.contains);
+      s.directInvites.removeWhere(s.busyStaffIds.contains);
+      s.preacherIds.removeWhere(s.busyStaffIds.contains);
+      s.preceptGiverIds.removeWhere(s.busyStaffIds.contains);
+    });
+    if (removedCount > 0) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          'ព្រះសង្ឃ ${kh(removedCount)} អង្គជាន់ម៉ោងគ្នា ហើយត្រូវបានដោះជ្រើសរើស',
+        ),
+      ));
+    }
     Navigator.push(
-        context, MaterialPageRoute(builder: (_) => const PreviewScreen()));
+      context,
+      MaterialPageRoute(builder: (_) => const StaffSelectScreen()),
+    );
   }
 
   Widget _timeTile(BuildContext context, String label, TimeOfDay? t,

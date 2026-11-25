@@ -8,7 +8,7 @@ class Db {
 
   static Future<Database> _open() async {
     final path = p.join(await getDatabasesPath(), 'task_assign.db');
-    return openDatabase(path, version: 8, onUpgrade: (d, oldV, newV) async {
+    return openDatabase(path, version: 12, onUpgrade: (d, oldV, newV) async {
       if (oldV < 5) {
         await d.execute('ALTER TABLE templates ADD COLUMN note TEXT');
       }
@@ -55,11 +55,42 @@ class Db {
       if (oldV < 8) {
         await d.execute('ALTER TABLE templates ADD COLUMN task_date TEXT');
       }
+      if (oldV < 9) {
+        await d.execute(
+            "ALTER TABLE staff ADD COLUMN status TEXT NOT NULL DEFAULT 'នៅវត្ត'");
+        await d.execute(
+            "ALTER TABLE leaders ADD COLUMN status TEXT NOT NULL DEFAULT 'អាចធ្វើបាន'");
+      }
+      if (oldV < 10) {
+        await d.execute('ALTER TABLE task_history ADD COLUMN leader_id INTEGER');
+        await _createTaskPreachers(d);
+      }
+      if (oldV < 11) {
+        await d.execute(
+            'ALTER TABLE task_history ADD COLUMN preach_dharma INTEGER NOT NULL DEFAULT 0');
+        await d.execute(
+            "ALTER TABLE task_history ADD COLUMN precepts_type TEXT NOT NULL DEFAULT ''");
+        await d.execute(
+            'UPDATE task_history SET preach_dharma = 1 WHERE id IN '
+            '(SELECT history_id FROM task_preachers)');
+      }
+      if (oldV < 12) {
+        await _createTaskPreceptGivers(d);
+        await d.execute(
+          'INSERT OR IGNORE INTO task_precept_givers '
+          '(history_id, staff_id, staff_name) '
+          'SELECT p.history_id, p.staff_id, p.staff_name FROM task_preachers p '
+          'JOIN task_history h ON h.id = p.history_id '
+          "WHERE h.precepts_type != ''",
+        );
+      }
     }, onCreate: (d, v) async {
       await d.execute('CREATE TABLE staff('
-          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT, phone TEXT, age INTEGER)');
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT, phone TEXT, age INTEGER, '
+          "status TEXT NOT NULL DEFAULT 'នៅវត្ត')");
       await d.execute('CREATE TABLE leaders('
-          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)');
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, '
+          "status TEXT NOT NULL DEFAULT 'អាចធ្វើបាន')");
       await d.execute('CREATE TABLE places('
           'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)');
       await d.execute('CREATE TABLE templates('
@@ -70,8 +101,11 @@ class Db {
       await d.execute('CREATE TABLE task_history('
           'id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, task_date TEXT, '
           'staff_names TEXT, leader TEXT, place TEXT, message TEXT, created_at TEXT, '
-          'start_min INTEGER, end_min INTEGER, note TEXT)');
+          'start_min INTEGER, end_min INTEGER, note TEXT, leader_id INTEGER, '
+          "preach_dharma INTEGER NOT NULL DEFAULT 0, precepts_type TEXT NOT NULL DEFAULT '')");
       await _createTaskStaff(d);
+      await _createTaskPreachers(d);
+      await _createTaskPreceptGivers(d);
 
       // ទិន្នន័យគំរូ (កែ ឬលុបបានតាមចិត្ត)
       for (final n in ['អាចារ្យ ម៉ៅ', 'អាចារ្យ ហូ']) {
@@ -108,9 +142,22 @@ class Db {
       'staff_name TEXT, task_date TEXT, start_min INTEGER, end_min INTEGER, '
       'direct INTEGER NOT NULL DEFAULT 0)');
 
+  static Future<void> _createTaskPreachers(Database d) => d.execute(
+      'CREATE TABLE task_preachers('
+      'history_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, '
+      'staff_name TEXT NOT NULL, PRIMARY KEY(history_id, staff_id))');
+
+  static Future<void> _createTaskPreceptGivers(Database d) => d.execute(
+      'CREATE TABLE task_precept_givers('
+      'history_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, '
+      'staff_name TEXT NOT NULL, PRIMARY KEY(history_id, staff_id))');
+
   static Future<void> deleteHistory(int id) async {
     final d = await instance;
     await d.delete('task_staff', where: 'history_id = ?', whereArgs: [id]);
+    await d.delete('task_preachers', where: 'history_id = ?', whereArgs: [id]);
+    await d.delete('task_precept_givers',
+        where: 'history_id = ?', whereArgs: [id]);
     await d.delete('task_history', where: 'id = ?', whereArgs: [id]);
   }
 

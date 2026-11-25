@@ -8,7 +8,7 @@ import '../data/db.dart';
 import '../services/notification_service.dart';
 import '../state/app_state.dart';
 import '../widgets/dialogs.dart';
-import 'staff_select_screen.dart';
+import 'details_screen.dart';
 
 // ---------------- History (Home) ----------------
 
@@ -49,7 +49,10 @@ void copyHistory(BuildContext context, Map<String, dynamic> h) {
 Future<void> editHistory(BuildContext context, AppState s, Map<String, dynamic> h) async {
   await s.startEdit(h);
   if (context.mounted) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffSelectScreen()));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DetailsScreen()),
+    );
   }
 }
 

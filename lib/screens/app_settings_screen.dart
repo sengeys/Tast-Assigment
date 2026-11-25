@@ -6,7 +6,13 @@ import '../state/app_state.dart';
 class AppSettingsScreen extends StatelessWidget {
   const AppSettingsScreen({super.key});
 
-  static const _themeNames = ['បៃតងខៀវ', 'ខៀវ', 'ស្វាយ', 'ទឹកក្រូច'];
+  static const _themeNames = [
+    'បៃតងខៀវ',
+    'ខៀវ',
+    'ស្វាយ',
+    'ទឹកក្រូច',
+    'ពណ៌ទឹកក្រូច',
+  ];
 
   @override
   Widget build(BuildContext context) {
