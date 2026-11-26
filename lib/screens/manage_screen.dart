@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
 import '../core/roles.dart';
+import '../core/staff_avatar_color.dart';
 import '../core/statuses.dart';
 import '../data/db.dart';
 import '../state/app_state.dart';
@@ -11,7 +12,8 @@ import '../widgets/dialogs.dart';
 
 enum ManageCategory {
   monks('ព្រះសង្ឃ', Icons.person_outline, 'staff', true, monkStatuses),
-  leaders('អាចារ្យ', Icons.person_pin_outlined, 'leaders', false, leaderStatuses),
+  leaders(
+      'អាចារ្យ', Icons.person_pin_outlined, 'leaders', false, leaderStatuses),
   places('ទីតាំង', Icons.place_outlined, 'places', false, []);
 
   const ManageCategory(
@@ -111,8 +113,14 @@ class ManageCategoryScreen extends StatefulWidget {
 }
 
 class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
+  static const _sanghaFilter = '__sangha_group__';
+  static const _vassaFilter = '__vassa_order__';
+
   final Set<int> _selectedIds = {};
   bool _selectionMode = false;
+  bool _searchExpanded = false;
+  String query = '';
+  String? filterValue;
 
   Future<void> _edit(
     AppState state,
@@ -155,6 +163,48 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
       _selectionMode = false;
       _selectedIds.clear();
     });
+  }
+
+  int _filterCount(
+    List<Map<String, dynamic>> rows,
+    String? value,
+  ) {
+    if (value == null || value == _vassaFilter) return rows.length;
+    if (value == _sanghaFilter) {
+      return rows.where((record) => isSanghaRole(record['role'])).length;
+    }
+    if (widget.category.withRole) {
+      return rows
+          .where((record) => matchesRoleFilter(record['role'], value))
+          .length;
+    }
+    return rows.where((record) => record['status'] == value).length;
+  }
+
+  String _filterOptionName(String value) =>
+      value == _sanghaFilter ? 'គណៈសង្ឃ' : value;
+
+  Widget _filterMenuItem({
+    required String label,
+    required int count,
+    required bool selected,
+  }) {
+    final theme = Theme.of(context);
+    final color = selected ? theme.colorScheme.primary : null;
+    return Row(
+      children: [
+        if (selected)
+          Icon(Icons.check_circle_outline, size: 20, color: color)
+        else
+          const SizedBox(width: 20),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label)),
+        Text(
+          '(${kh(count)})',
+          style: TextStyle(color: color),
+        ),
+      ],
+    );
   }
 
   Future<void> _showRecordActions(
@@ -280,6 +330,36 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
       ...roleOrder,
       ...state.roles.where((role) => !roleOrder.contains(role)),
     ];
+    final filterOptions = widget.category.withRole
+        ? [
+            _sanghaFilter,
+            'ភិក្ខុ',
+            ...roleOptions.where(
+              (role) => !isSanghaRole(role) && role != 'ភិក្ខុ',
+            ),
+          ]
+        : widget.category.statusOptions;
+    final filterField = widget.category.withRole ? 'role' : 'status';
+    final filterLabel = widget.category.withRole ? 'តួនាទី' : 'ស្ថានភាព';
+    final isSanghaFilter =
+        widget.category.withRole && filterValue == _sanghaFilter;
+    final isVassaSort = widget.category.withRole && filterValue == _vassaFilter;
+    final filteredRows = rows.where((record) {
+      final name = (record['name'] ?? '').toString().toLowerCase();
+      final matchesQuery = name.contains(query.toLowerCase());
+      final bool matchesFilter;
+      if (filterValue == null || isVassaSort) {
+        matchesFilter = true;
+      } else if (isSanghaFilter) {
+        matchesFilter = isSanghaRole(record[filterField]);
+      } else if (widget.category.withRole) {
+        matchesFilter = matchesRoleFilter(record[filterField], filterValue);
+      } else {
+        matchesFilter = record[filterField] == filterValue;
+      }
+      return matchesQuery && matchesFilter;
+    }).toList();
+    if (isVassaSort) filteredRows.sort(compareStaffByVassa);
 
     return Scaffold(
       appBar: AppBar(
@@ -290,12 +370,67 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
                 onPressed: _cancelSelection,
               )
             : null,
-        title: Text(
-          _selectionMode
-              ? 'បានជ្រើសរើស (${kh(_selectedIds.length)})'
-              : 'គ្រប់គ្រង${widget.category.title}',
-        ),
+        title: _selectionMode
+            ? Text('បានជ្រើសរើស (${kh(_selectedIds.length)})')
+            : _searchExpanded
+                ? TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'ស្វែងរកឈ្មោះ',
+                      border: InputBorder.none,
+                      isDense: true,
+                    ),
+                    onChanged: (value) => setState(() => query = value),
+                  )
+                : Text('គ្រប់គ្រង${widget.category.title}'),
         actions: [
+          if (!_selectionMode)
+            IconButton(
+              icon: Icon(_searchExpanded ? Icons.close : Icons.search),
+              tooltip: _searchExpanded ? 'បិទការស្វែងរក' : 'ស្វែងរក',
+              onPressed: () => setState(() {
+                _searchExpanded = !_searchExpanded;
+                if (!_searchExpanded) query = '';
+              }),
+            ),
+          if (!_selectionMode && filterOptions.isNotEmpty)
+            PopupMenuButton<String>(
+              tooltip: widget.category.withRole
+                  ? 'ត្រងតាមគណៈសង្ឃ តួនាទី ឬវស្សា'
+                  : 'ត្រងតាម$filterLabel',
+              icon: const Icon(Icons.filter_list),
+              onSelected: (value) =>
+                  setState(() => filterValue = value.isEmpty ? null : value),
+              itemBuilder: (context) => <PopupMenuEntry<String>>[
+                PopupMenuItem(
+                  value: '',
+                  child: _filterMenuItem(
+                    label: 'ទាំងអស់',
+                    count: _filterCount(rows, null),
+                    selected: filterValue == null,
+                  ),
+                ),
+                for (final option in filterOptions)
+                  PopupMenuItem(
+                    value: option,
+                    child: _filterMenuItem(
+                      label: _filterOptionName(option),
+                      count: _filterCount(rows, option),
+                      selected: filterValue == option,
+                    ),
+                  ),
+                if (widget.category.withRole) const PopupMenuDivider(),
+                if (widget.category.withRole)
+                  PopupMenuItem(
+                    value: _vassaFilter,
+                    child: _filterMenuItem(
+                      label: 'វស្សា',
+                      count: _filterCount(rows, _vassaFilter),
+                      selected: filterValue == _vassaFilter,
+                    ),
+                  ),
+              ],
+            ),
           if (_selectionMode && _selectedIds.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -311,89 +446,110 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
           ? Center(
               child: Text('មិនទាន់មានទិន្នន័យ${widget.category.title}'),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.only(top: 8, bottom: 88),
-              itemCount: rows.length,
-              itemBuilder: (context, index) {
-                final record = rows[index];
-                final id = record['id'] as int;
-                final selected = _selectedIds.contains(id);
-                final colors = Theme.of(context).colorScheme;
-                final subtitle = [
-                  if (widget.category.withRole) ...[
+          : filteredRows.isEmpty
+              ? const Center(child: Text('រកមិនឃើញទិន្នន័យ'))
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 8, bottom: 88),
+                  itemCount: filteredRows.length,
+                  itemBuilder: (context, index) {
+                    final record = filteredRows[index];
+                    final id = record['id'] as int;
+                    final selected = _selectedIds.contains(id);
+                    final colors = Theme.of(context).colorScheme;
+                    final status = widget.category.statusOptions.isEmpty
+                        ? ''
+                        : (record['status'] ??
+                                widget.category.statusOptions.first)
+                            .toString();
+                    final subtitle = [
+                      if (widget.category.withRole) ...[
                         record['role'],
                         if (record['age'] != null) 'វស្សា ${kh(record['age'])}',
                         record['phone'],
-                  ],
-                  if (widget.category.statusOptions.isNotEmpty)
-                    'ស្ថានភាព: ${record['status'] ?? widget.category.statusOptions.first}',
-                ]
-                    .where((value) =>
-                        value != null && value.toString().isNotEmpty)
-                    .join(' • ');
-                final borderRadius = BorderRadius.circular(12);
-                return Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? Color.lerp(
-                            Colors.white,
-                            Theme.of(context).colorScheme.primaryContainer,
-                            0.45,
-                          )
-                        : const Color(0xFFF5F6F9),
-                    borderRadius: borderRadius,
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: borderRadius,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                      ],
+                    ]
+                        .where((value) =>
+                            value != null && value.toString().isNotEmpty)
+                        .join(' • ');
+                    final borderRadius = BorderRadius.circular(12);
+                    return Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
-                      shape: RoundedRectangleBorder(
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? Color.lerp(
+                                Colors.white,
+                                Theme.of(context).colorScheme.primaryContainer,
+                                0.45,
+                              )
+                            : const Color(0xFFF5F6F9),
                         borderRadius: borderRadius,
                       ),
-                      leading: _selectionMode
-                          ? Checkbox(
-                              value: selected,
-                              shape: const CircleBorder(),
-                              activeColor: colors.primary,
-                              side: BorderSide(color: colors.primary),
-                              onChanged: (_) => _toggleSelection(record),
-                            )
-                          : Icon(
-                              widget.category.icon,
-                              color: colors.primary,
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: borderRadius,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: borderRadius,
+                          ),
+                          leading: _selectionMode
+                              ? Checkbox(
+                                  value: selected,
+                                  shape: const CircleBorder(),
+                                  activeColor: colors.primary,
+                                  side: BorderSide(color: colors.primary),
+                                  onChanged: (_) => _toggleSelection(record),
+                                )
+                              : CircleAvatar(
+                                  backgroundColor: staffAvatarColor(id),
+                                  child: Icon(
+                                    widget.category == ManageCategory.places
+                                        ? widget.category.icon
+                                        : Icons.person_outline,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                          title: Text.rich(
+                            TextSpan(
+                              text: (record['name'] ?? '').toString(),
+                              style: const TextStyle(color: Color(0xFF757575)),
+                              children: [
+                                if (status.isNotEmpty)
+                                  TextSpan(
+                                    text: ' • $status',
+                                    style: TextStyle(
+                                      color: colors.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                              ],
                             ),
-                      title: Text(
-                        (record['name'] ?? '').toString(),
-                        style: const TextStyle(color: Color(0xFF757575)),
+                          ),
+                          subtitle: subtitle.isEmpty ? null : Text(subtitle),
+                          onTap: _selectionMode
+                              ? () => _toggleSelection(record)
+                              : () => _edit(state, roleOptions, record),
+                          onLongPress: _selectionMode
+                              ? () => _toggleSelection(record)
+                              : () => _showRecordActions(
+                                    state,
+                                    roleOptions,
+                                    record,
+                                  ),
+                        ),
                       ),
-                      subtitle: subtitle.isEmpty
-                          ? null
-                          : Text(subtitle),
-                      onTap: _selectionMode
-                          ? () => _toggleSelection(record)
-                          : () => _edit(state, roleOptions, record),
-                      onLongPress: _selectionMode
-                          ? () => _toggleSelection(record)
-                          : () => _showRecordActions(
-                                state,
-                                roleOptions,
-                                record,
-                              ),
-                    ),
-                  ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
-        label: Text('បន្ថែម${widget.category.title}'),
+                    );
+                  },
+                ),
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'បន្ថែម${widget.category.title}',
+        shape: const CircleBorder(),
+        child: const Icon(Icons.person_add),
         onPressed: () => _add(state, roleOptions),
       ),
     );

@@ -439,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             )
                           : Icon(
                               ended ? Icons.check_circle : Icons.schedule,
-                              color: colors.primary.withValues(alpha: 0.60),
+                              color: colors.primary.withValues(alpha: 1),
                             ),
                       title: Text('${h['title']}  •  ${kh(count)} អង្គ'),
                       subtitle: Text(
@@ -470,9 +470,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
       floatingActionButton: _historySelectionMode
           ? null
-          : FloatingActionButton.extended(
-              icon: const Icon(Icons.add),
-              label: const Text('ចាត់ទៅបុណ្យថ្មី'),
+          : FloatingActionButton(
+              tooltip: 'ចាត់ទៅបុណ្យថ្មី',
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const TemplatesScreen()),

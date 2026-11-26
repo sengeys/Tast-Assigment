@@ -18,7 +18,6 @@ class AppState extends ChangeNotifier {
     Colors.blue,
     Colors.deepPurple,
     Colors.deepOrange,
-    Color(0xFFFF7643),
   ];
   static const _themeSeedKey = 'appThemeSeedIndex';
 
@@ -26,7 +25,6 @@ class AppState extends ChangeNotifier {
   int _themeSeedIndex = 0;
 
   Color get themeSeed => themeSeeds[_themeSeedIndex];
-  bool get usesCustomOrangeTheme => _themeSeedIndex == themeSeeds.length - 1;
 
   List<Map<String, dynamic>> staff = [],
       leaders = [],

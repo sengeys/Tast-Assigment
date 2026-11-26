@@ -109,7 +109,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                       decoration: BoxDecoration(
                         color: notification['isRead'] == true
                             ? Colors.white
-                            : colors.primaryContainer,
+                            : Color.lerp(
+                                Colors.white, colors.primaryContainer, 0.45),
                         borderRadius: borderRadius,
                       ),
                       child: Material(

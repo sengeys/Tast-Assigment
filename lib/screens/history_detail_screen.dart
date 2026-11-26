@@ -22,15 +22,20 @@ class HistoryDetailScreen extends StatelessWidget {
     }
     final h = matches.first;
     final ended = historyEnded(h);
-    final names =
-        (h['staff_names'] ?? '').toString().split(', ').where((e) => e.isNotEmpty).toList();
+    final names = (h['staff_names'] ?? '')
+        .toString()
+        .split(', ')
+        .where((e) => e.isNotEmpty)
+        .toList();
     final time = historyTimeText(h);
 
     Widget row(IconData icon, String label, String value) => ListTile(
           dense: true,
           leading: Icon(icon),
-          title: Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          subtitle: Text(value.isEmpty ? '—' : value, style: const TextStyle(fontSize: 16)),
+          title: Text(label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          subtitle: Text(value.isEmpty ? '—' : value,
+              style: const TextStyle(fontSize: 16)),
         );
 
     return Scaffold(
@@ -57,9 +62,13 @@ class HistoryDetailScreen extends StatelessWidget {
         children: [
           if (ended)
             Container(
-              color: Colors.redAccent.shade100,
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.redAccent.shade100),
               padding: const EdgeInsets.all(12),
-              child: const Text('ព្រះសង្ឃដែលបានទៅបុណ្យនេះផុតម៉ោងហើយ — កែ ឬលុបបានតែនៅទំព័រនេះប៉ុណ្ណោះ', 
+              child: const Text(
+                  'ព្រះសង្ឃដែលបានទៅបុណ្យនេះផុតម៉ោងហើយ — កែ ឬលុបបានតែនៅទំព័រនេះប៉ុណ្ណោះ',
                   style: TextStyle(fontSize: 14, color: Colors.black87)),
             ),
           row(Icons.calendar_today, 'កាលបរិច្ឆេទ', historyDateFullText(h)),
@@ -73,7 +82,10 @@ class HistoryDetailScreen extends StatelessWidget {
             title: Text('ព្រះសង្ឃ (${kh(names.length)} អង្គ)',
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
             subtitle: Text(
-              [for (var i = 0; i < names.length; i++) '${kh(i + 1)}. ${names[i]}'].join('\n'),
+              [
+                for (var i = 0; i < names.length; i++)
+                  '${kh(i + 1)}. ${names[i]}'
+              ].join('\n'),
               style: const TextStyle(fontSize: 16),
             ),
           ),
@@ -84,7 +96,8 @@ class HistoryDetailScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                  color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8)),
               child: SelectableText((h['message'] ?? '').toString(),
                   style: const TextStyle(fontSize: 15, height: 1.3)),
             ),

@@ -47,32 +47,6 @@ class TaskApp extends StatelessWidget {
         colorSchemeSeed: appState.themeSeed,
         useMaterial3: true,
         fontFamily: 'NotoSansKhmer',
-        filledButtonTheme: appState.usesCustomOrangeTheme
-            ? FilledButtonThemeData(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF7643),
-                  foregroundColor: const Color(0xFFFFFFFF),
-                ),
-              )
-            : null,
-        elevatedButtonTheme: appState.usesCustomOrangeTheme
-            ? ElevatedButtonThemeData(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF7643),
-                  foregroundColor: const Color(0xFFFFFFFF),
-                ),
-              )
-            : null,
-        chipTheme: appState.usesCustomOrangeTheme
-            ? ChipThemeData(
-                backgroundColor: const Color(0xFFFFECDF),
-                selectedColor: const Color(0xFFFFECDF),
-                labelStyle: const TextStyle(color: Color(0xFFFF7643)),
-                secondaryLabelStyle: const TextStyle(color: Color(0xFFFF7643)),
-                checkmarkColor: const Color(0xFFFF7643),
-                side: const BorderSide(color: Color(0xFFFF7643)),
-              )
-            : null,
       ),
       home: const HomeScreen(),
     );

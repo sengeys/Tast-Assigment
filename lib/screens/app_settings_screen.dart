@@ -11,7 +11,6 @@ class AppSettingsScreen extends StatelessWidget {
     'ខៀវ',
     'ស្វាយ',
     'ទឹកក្រូច',
-    'ពណ៌ទឹកក្រូច',
   ];
 
   @override

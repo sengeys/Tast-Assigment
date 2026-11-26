@@ -358,39 +358,18 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                   ChoiceChip(
                     label: const Text('បណ្ដោះអាសន្ន'),
                     selected: filter == TemplateFilter.temporary,
-                    side: s.usesCustomOrangeTheme
-                        ? BorderSide(
-                            color: filter == TemplateFilter.temporary
-                                ? const Color(0xFFFFECDF)
-                                : const Color(0xFFFF7643),
-                          )
-                        : null,
                     onSelected: (_) =>
                         setState(() => filter = TemplateFilter.temporary),
                   ),
                   ChoiceChip(
                     label: const Text('អចិន្ត្រៃយ៍'),
                     selected: filter == TemplateFilter.permanent,
-                    side: s.usesCustomOrangeTheme
-                        ? BorderSide(
-                            color: filter == TemplateFilter.permanent
-                                ? const Color(0xFFFFECDF)
-                                : const Color(0xFFFF7643),
-                          )
-                        : null,
                     onSelected: (_) =>
                         setState(() => filter = TemplateFilter.permanent),
                   ),
                   ChoiceChip(
                     label: const Text('បានប្រើរួច'),
                     selected: filter == TemplateFilter.archived,
-                    side: s.usesCustomOrangeTheme
-                        ? BorderSide(
-                            color: filter == TemplateFilter.archived
-                                ? const Color(0xFFFFECDF)
-                                : const Color(0xFFFF7643),
-                          )
-                        : null,
                     onSelected: (_) =>
                         setState(() => filter = TemplateFilter.archived),
                   ),
@@ -525,9 +504,10 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
       ),
       floatingActionButton: _selectionMode
           ? null
-          : FloatingActionButton.extended(
-              icon: const Icon(Icons.add),
-              label: const Text('គំរូថ្មី'),
+          : FloatingActionButton(
+              tooltip: 'គំរូថ្មី',
+              shape: CircleBorder(),
+              child: const Icon(Icons.assignment_add),
               onPressed: () => _createTemplate(s),
             ),
     );
@@ -712,25 +692,11 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
               ChoiceChip(
                 label: const Text('បណ្ដោះអាសន្ន'),
                 selected: isTemporary,
-                side: s.usesCustomOrangeTheme
-                    ? BorderSide(
-                        color: isTemporary
-                            ? const Color(0xFFFFECDF)
-                            : const Color(0xFFFF7643),
-                      )
-                    : null,
                 onSelected: (_) => setState(() => isTemporary = true),
               ),
               ChoiceChip(
                 label: const Text('អចិន្ត្រៃយ៍'),
                 selected: !isTemporary,
-                side: s.usesCustomOrangeTheme
-                    ? BorderSide(
-                        color: !isTemporary
-                            ? const Color(0xFFFFECDF)
-                            : const Color(0xFFFF7643),
-                      )
-                    : null,
                 onSelected: (_) => setState(() => isTemporary = false),
               ),
             ],

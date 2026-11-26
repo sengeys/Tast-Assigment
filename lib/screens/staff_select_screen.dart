@@ -18,8 +18,12 @@ class StaffSelectScreen extends StatefulWidget {
 }
 
 class _StaffSelectScreenState extends State<StaffSelectScreen> {
+  static const _sanghaFilter = '__sangha_group__';
+  static const _vassaFilter = '__vassa_order__';
+
   String? roleFilter;
   String query = '';
+  bool _searchExpanded = false;
   bool initialized = false;
 
   @override
@@ -30,18 +34,88 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
       if (r != null && r.toString().isNotEmpty) roleFilter = r;
       initialized = true;
     }
+    final filterRoles = [
+      _sanghaFilter,
+      ...roleOrder.where((role) => !isSanghaRole(role)),
+      ...s.roles.where((role) => !roleOrder.contains(role)),
+    ];
     final list = s.staff.where((x) {
       final eligible = canAttendWithMonks(x['status']);
       final available = !s.busyStaffIds.contains(x['id']);
-      final okRole = roleFilter == null || x['role'] == roleFilter;
+      final okRole = roleFilter == null ||
+          roleFilter == _vassaFilter ||
+          (roleFilter == _sanghaFilter
+              ? isSanghaRole(x['role'])
+              : matchesRoleFilter(x['role'], roleFilter));
       final okName = query.isEmpty || (x['name'] as String).contains(query);
       return eligible && available && okRole && okName;
     }).toList();
+    if (roleFilter == _vassaFilter) list.sort(compareStaffByVassa);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('ជ្រើសរើសព្រះសង្ឃ (${kh(s.selected.length)})'),
+        title: _searchExpanded
+            ? TextField(
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'ស្វែងរកឈ្មោះ',
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+                onChanged: (value) => setState(() => query = value),
+              )
+            : Text('ជ្រើសរើសព្រះសង្ឃ (${kh(s.selected.length)})'),
         actions: [
+          IconButton(
+            icon: Icon(_searchExpanded ? Icons.close : Icons.search),
+            tooltip: _searchExpanded ? 'បិទការស្វែងរក' : 'ស្វែងរក',
+            onPressed: () => setState(() {
+              _searchExpanded = !_searchExpanded;
+              if (!_searchExpanded) query = '';
+            }),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'ត្រងតាមតួនាទី ឬវស្សា',
+            icon: const Icon(Icons.filter_list),
+            onSelected: (value) =>
+                setState(() => roleFilter = value.isEmpty ? null : value),
+            itemBuilder: (context) => <PopupMenuEntry<String>>[
+              PopupMenuItem(
+                value: '',
+                child: Row(
+                  children: [
+                    const Expanded(child: Text('ទាំងអស់')),
+                    if (roleFilter == null) const Icon(Icons.check, size: 18),
+                  ],
+                ),
+              ),
+              for (final role in filterRoles)
+                PopupMenuItem(
+                  value: role,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          role == _sanghaFilter ? 'គណៈសង្ឃ' : role,
+                        ),
+                      ),
+                      if (roleFilter == role) const Icon(Icons.check, size: 18),
+                    ],
+                  ),
+                ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: _vassaFilter,
+                child: Row(
+                  children: [
+                    const Expanded(child: Text('វស្សា')),
+                    if (roleFilter == _vassaFilter)
+                      const Icon(Icons.check, size: 18),
+                  ],
+                ),
+              ),
+            ],
+          ),
           if (s.selected.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear_all),
@@ -55,54 +129,6 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: TextField(
-              decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText: 'ស្វែងរកឈ្មោះ',
-                  border: OutlineInputBorder()),
-              onChanged: (v) => setState(() => query = v),
-            ),
-          ),
-          SizedBox(
-            height: 52,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: ChoiceChip(
-                      label: const Text('ទាំងអស់'),
-                      selected: roleFilter == null,
-                      side: s.usesCustomOrangeTheme
-                          ? BorderSide(
-                              color: roleFilter == null
-                                  ? const Color(0xFFFFECDF)
-                                  : const Color(0xFFFF7643),
-                            )
-                          : null,
-                      onSelected: (_) => setState(() => roleFilter = null)),
-                ),
-                for (final r in s.roles)
-                  Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: ChoiceChip(
-                        label: Text(r),
-                        selected: roleFilter == r,
-                        side: s.usesCustomOrangeTheme
-                            ? BorderSide(
-                                color: roleFilter == r
-                                    ? const Color(0xFFFFECDF)
-                                    : const Color(0xFFFF7643),
-                              )
-                            : null,
-                        onSelected: (_) => setState(() => roleFilter = r)),
-                  ),
-              ],
-            ),
-          ),
           Expanded(
             child: Stack(
               children: [
@@ -244,6 +270,7 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
         children: [
           FloatingActionButton.small(
             heroTag: 'add',
+            shape: CircleBorder(),
             child: const Icon(Icons.person_add),
             onPressed: () async {
               final value = await recordDialog(
@@ -275,7 +302,8 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
             label: const Text('បន្ទាប់'),
             onPressed: s.selected.isEmpty
                 ? null
-                : () => Navigator.push(context,
+                : () => Navigator.push(
+                    context,
                     MaterialPageRoute(
                         builder: (_) => const AssignmentExtrasScreen())),
           ),
