@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
 import '../core/khmer_lunar.dart';
+import '../core/input_styles.dart';
 import '../core/statuses.dart';
 import '../data/db.dart';
 import '../state/app_state.dart';
@@ -24,17 +25,17 @@ class DetailsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextFormField(
-            initialValue: s.title,
-            decoration: const InputDecoration(
+          AppInputFocusGlow(
+            child: TextFormField(
+              initialValue: s.title,
+              style: appInputTextStyle,
+              decoration: const InputDecoration(
                 labelText: 'ឈ្មោះបុណ្យ',
-                labelStyle: TextStyle(color: Colors.grey),
-                // focusedBorder: OutlineInputBorder(
-                //     borderSide: BorderSide(color: Colors.grey)),
                 hintText: 'ឧ. សង្ឃទាន...',
-                hintStyle: TextStyle(color: Colors.grey),
-                border: OutlineInputBorder()),
-            onChanged: (v) => s.title = v,
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => s.title = v,
+            ),
           ),
           const SizedBox(height: 12),
           ListTile(
@@ -68,7 +69,7 @@ class DetailsScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<int?>(
+                child: AppDropdownButtonFormField<int?>(
                   initialValue:
                       eligibleLeaders.any((l) => l['id'] == s.leaderId)
                           ? s.leaderId
@@ -104,7 +105,7 @@ class DetailsScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String?>(
+                child: AppDropdownButtonFormField<String?>(
                   initialValue: s.places.any((x) => x['name'] == s.place)
                       ? s.place
                       : null,
@@ -136,20 +137,19 @@ class DetailsScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            initialValue: s.note,
-            minLines: 2,
-            maxLines: null,
-            decoration: const InputDecoration(
+          AppInputFocusGlow(
+            child: TextFormField(
+              initialValue: s.note,
+              minLines: 2,
+              maxLines: null,
+              style: appInputTextStyle,
+              decoration: const InputDecoration(
                 labelText: 'បញ្ជាក់ (មិនចាំបាច់)',
-                labelStyle: TextStyle(color: Colors.grey),
-
-                // focusedBorder: OutlineInputBorder(
-                //     borderSide: BorderSide(color: Colors.grey)),
                 hintText: 'ឧ. យកបាត្រ និង ស្រាក់...',
-                hintStyle: TextStyle(color: Colors.grey),
-                border: OutlineInputBorder()),
-            onChanged: (v) => s.note = v,
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => s.note = v,
+            ),
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(

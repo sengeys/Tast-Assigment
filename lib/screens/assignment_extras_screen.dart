@@ -103,20 +103,49 @@ class AssignmentExtrasScreen extends StatelessWidget {
     });
   }
 
+  Future<void> _showSelectionRequiredAlert(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.warning_amber, color: Colors.orange),
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('យល់ព្រម'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _goPreview(BuildContext context, AppState state) async {
+    if (state.directInviteEnabled && state.directInvites.isEmpty) {
+      await _showSelectionRequiredAlert(
+        context,
+        title: 'មិនទាន់បានជ្រើសរើសព្រះសង្ឃនិមន្តផ្ទាល់',
+        message: 'សូមជ្រើសរើសព្រះសង្ឃនិមន្តផ្ទាល់សិន',
+      );
+      return;
+    }
     if (state.preachDharma && state.selectedPreachers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('សូមជ្រើសរើសព្រះសង្ឃសម្រាប់សម្ដែងធម្មទេសនា'),
-        ),
+      await _showSelectionRequiredAlert(
+        context,
+        title: 'មិនទាន់បានជ្រើសរើសអ្នកសម្ដែងធម្មទេសនា',
+        message: 'សូមជ្រើសរើសព្រះសង្ឃសម្រាប់សម្ដែងធម្មទេសនាសិន',
       );
       return;
     }
     if (state.preceptsType != null && state.selectedPreceptGivers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('សូមជ្រើសរើសព្រះសង្ឃសម្រាប់ប្រទានសីល'),
-        ),
+      await _showSelectionRequiredAlert(
+        context,
+        title: 'មិនទាន់បានជ្រើសរើសអ្នកប្រទានសីល',
+        message: 'សូមជ្រើសរើសព្រះសង្ឃសម្រាប់ប្រទានសីលសិន',
       );
       return;
     }
@@ -218,7 +247,7 @@ class AssignmentExtrasScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ព្រះសង្ឃនិមន្តផ្ទាល់ ទេសនា និងប្រទានសីល'),
+        title: const Text('ព្រះសង្ឃដែលមានភារៈកិច្ចបន្ថែម'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -241,7 +270,7 @@ class AssignmentExtrasScreen extends StatelessWidget {
                         WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
                           child: Icon(
-                            Icons.check_circle,
+                            Icons.check_circle_outline_outlined,
                             size: 16,
                             color: Theme.of(context).colorScheme.primary,
                           ),
@@ -297,7 +326,7 @@ class AssignmentExtrasScreen extends StatelessWidget {
                         WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
                           child: Icon(
-                            Icons.check_circle,
+                            Icons.check_circle_outline_outlined,
                             size: 16,
                             color: Theme.of(context).colorScheme.primary,
                           ),
@@ -375,7 +404,7 @@ class AssignmentExtrasScreen extends StatelessWidget {
                         WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
                           child: Icon(
-                            Icons.check_circle,
+                            Icons.check_circle_outline_outlined,
                             size: 16,
                             color: Theme.of(context).colorScheme.primary,
                           ),
@@ -386,12 +415,36 @@ class AssignmentExtrasScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  onChanged: (value) => state.update(() {
-                    state.directInviteEnabled = value ?? false;
-                    if (!state.directInviteEnabled) {
-                      state.directInvites.clear();
+                  onChanged: (value) async {
+                    if (value == true && selectedMonks.isEmpty) {
+                      await showDialog<void>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          icon: const Icon(
+                            Icons.warning_amber,
+                            color: Colors.orange,
+                          ),
+                          title: const Text('មិនទាន់បានជ្រើសរើសព្រះសង្ឃ'),
+                          content: const Text(
+                            'សូមជ្រើសរើសព្រះសង្ឃនៅជំហានមុនសិន',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext),
+                              child: const Text('យល់ព្រម'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
                     }
-                  }),
+                    state.update(() {
+                      state.directInviteEnabled = value ?? false;
+                      if (!state.directInviteEnabled) {
+                        state.directInvites.clear();
+                      }
+                    });
+                  },
                 ),
                 if (state.directInviteEnabled)
                   Padding(

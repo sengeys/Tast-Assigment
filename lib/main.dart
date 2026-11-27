@@ -39,14 +39,62 @@ class TaskApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    final colorScheme = ColorScheme.fromSeed(seedColor: appState.themeSeed);
     return MaterialApp(
       navigatorKey: appNavigatorKey,
       title: 'កម្មវិធីចាត់ព្រះសង្ឃទៅបុណ្យ',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorSchemeSeed: appState.themeSeed,
+        colorScheme: colorScheme,
         useMaterial3: true,
         fontFamily: 'NotoSansKhmer',
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          labelStyle: TextStyle(
+            color: Color(0xFF9696A0),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.1,
+          ),
+          floatingLabelStyle: TextStyle(
+            color: colorScheme.primary,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.1,
+          ),
+          hintStyle: TextStyle(
+            color: Color(0xFF787885),
+            fontSize: 20,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0.44,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Color(0xFFB4B4BB)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Color(0xFFB4B4BB)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: colorScheme.primary, width: 2),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Color(0xFFB4B4BB)),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Colors.red),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Colors.red, width: 2),
+          ),
+        ),
       ),
       home: const HomeScreen(),
     );

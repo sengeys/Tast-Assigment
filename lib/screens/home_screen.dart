@@ -438,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               onChanged: (_) => _toggleHistorySelection(h),
                             )
                           : Icon(
-                              ended ? Icons.check_circle : Icons.schedule,
+                              ended ? Icons.check_circle_outline_rounded : Icons.schedule,
                               color: colors.primary.withValues(alpha: 1),
                             ),
                       title: Text('${h['title']}  •  ${kh(count)} អង្គ'),

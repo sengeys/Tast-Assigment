@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
 import '../core/khmer_lunar.dart';
+import '../core/input_styles.dart';
 import '../core/roles.dart';
 import '../core/statuses.dart';
 import '../data/db.dart';
@@ -654,14 +655,16 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(
-            controller: title,
-            decoration: const InputDecoration(
+          AppInputFocusGlow(
+            child: TextField(
+              controller: title,
+              style: appInputTextStyle,
+              decoration: const InputDecoration(
                 labelText: 'ឈ្មោះបុណ្យ',
-                labelStyle: TextStyle(color: Colors.grey),
                 hintText: 'ឧ. សង្ឃទាន...',
-                hintStyle: TextStyle(color: Colors.grey),
-                border: OutlineInputBorder()),
+                border: OutlineInputBorder(),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           ListTile(
@@ -708,7 +711,7 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String?>(
+          AppDropdownButtonFormField<String?>(
             initialValue: role.isEmpty ? null : role,
             isExpanded: true,
             hint: const Text('ជ្រើសរើសតួនាទី...'),
@@ -743,7 +746,7 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<int?>(
+                child: AppDropdownButtonFormField<int?>(
                   key: ValueKey(leaderId),
                   initialValue: eligibleLeaders.any((l) => l['id'] == leaderId)
                       ? leaderId
@@ -774,7 +777,7 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String?>(
+                child: AppDropdownButtonFormField<String?>(
                   key: ValueKey(place),
                   initialValue:
                       s.places.any((x) => x['name'] == place) ? place : null,
@@ -801,16 +804,18 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: note,
-            minLines: 2,
-            maxLines: null,
-            decoration: const InputDecoration(
+          AppInputFocusGlow(
+            child: TextField(
+              controller: note,
+              minLines: 2,
+              maxLines: null,
+              style: appInputTextStyle,
+              decoration: const InputDecoration(
                 labelText: 'បញ្ជាក់ (មិនចាំបាច់)',
                 hintText: 'ឧ. យកបាត្រ និង ស្រាក់...',
-                labelStyle: TextStyle(color: Colors.grey),
-                hintStyle: TextStyle(color: Colors.grey),
-                border: OutlineInputBorder()),
+                border: OutlineInputBorder(),
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(

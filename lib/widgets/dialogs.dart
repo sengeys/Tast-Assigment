@@ -2,6 +2,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
+import '../core/input_styles.dart';
+
 String formatPhoneNumber(String value) {
   final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
   final formatted = StringBuffer();
@@ -77,10 +79,14 @@ Future<String?> askText(BuildContext context, String title,
     context: context,
     builder: (_) => AlertDialog(
       title: Text(title),
-      content: TextField(
+      content: AppInputFocusGlow(
+        child: TextField(
           controller: c,
           autofocus: true,
-          decoration: InputDecoration(hintText: hint)),
+          style: appInputTextStyle,
+          decoration: InputDecoration(hintText: hint),
+        ),
+      ),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
@@ -119,11 +125,14 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
       title: Text(title),
       content: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-              controller: n,
-              autofocus: true,
-              decoration: const InputDecoration(
-                  labelText: 'ឈ្មោះ', border: OutlineInputBorder())),
+          AppInputFocusGlow(
+            child: TextField(
+                controller: n,
+                autofocus: true,
+                style: appInputTextStyle,
+                decoration: const InputDecoration(
+                    labelText: 'ឈ្មោះ', border: OutlineInputBorder())),
+          ),
           SizedBox(height: 12),
           if (isStaff) ...[
             StatefulBuilder(
@@ -133,7 +142,7 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
                   ...roleOptions,
                   if (roleValue.isNotEmpty) roleValue
                 }.toList();
-                return DropdownButtonFormField<String>(
+                return AppDropdownButtonFormField<String>(
                   initialValue: roleValue,
                   isExpanded: true,
                   decoration: const InputDecoration(
@@ -152,23 +161,30 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
             ),
             const SizedBox(height: 12),
             if (includeAgeAndPhone) ...[
-              TextField(
-                  controller: a,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'វស្សា', border: OutlineInputBorder())),
+              AppInputFocusGlow(
+                child: TextField(
+                    controller: a,
+                    keyboardType: TextInputType.number,
+                    style: appInputTextStyle,
+                    decoration: const InputDecoration(
+                        labelText: 'វស្សា', border: OutlineInputBorder())),
+              ),
               const SizedBox(height: 12),
-              TextField(
-                  controller: p,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: const [PhoneNumberInputFormatter()],
-                  decoration: const InputDecoration(
-                      labelText: 'លេខទូរស័ព្ទ', border: OutlineInputBorder())),
+              AppInputFocusGlow(
+                child: TextField(
+                    controller: p,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: const [PhoneNumberInputFormatter()],
+                    style: appInputTextStyle,
+                    decoration: const InputDecoration(
+                        labelText: 'លេខទូរស័ព្ទ',
+                        border: OutlineInputBorder())),
+              ),
             ],
           ],
           if (statusOptions.isNotEmpty) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+            AppDropdownButtonFormField<String>(
               initialValue: statusValue,
               isExpanded: true,
               decoration: const InputDecoration(

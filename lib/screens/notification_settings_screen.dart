@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 
+import '../core/input_styles.dart';
 import '../services/notification_service.dart';
 import '../widgets/dialogs.dart';
 
@@ -99,7 +100,7 @@ class _NotificationSettingsScreenState
                 ),
                 if (_enabled) ...[
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<int>(
+                  AppDropdownButtonFormField<int>(
                     initialValue: _leadMinutes,
                     decoration: const InputDecoration(
                       labelText: 'រំលឹកមុនម៉ោង',

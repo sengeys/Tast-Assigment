@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
+import '../core/input_styles.dart';
 import '../core/roles.dart';
 import '../core/statuses.dart';
 import '../data/db.dart';
@@ -57,14 +58,21 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
         title: _searchExpanded
             ? TextField(
                 autofocus: true,
+                style: appInputTextStyle,
                 decoration: const InputDecoration(
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
                   hintText: 'ស្វែងរកឈ្មោះ',
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
                   isDense: true,
                 ),
                 onChanged: (value) => setState(() => query = value),
               )
-            : Text('ជ្រើសរើសព្រះសង្ឃ (${kh(s.selected.length)})'),
+            : Text('ជ្រើសរើសព្រះសង្ឃ'),
+        // : Text('ជ្រើសរើសព្រះសង្ឃ (${kh(s.selected.length)})'),
         actions: [
           IconButton(
             icon: Icon(_searchExpanded ? Icons.close : Icons.search),
@@ -134,7 +142,7 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
               children: [
                 Positioned.fill(
                   child: ListView.builder(
-                    padding: const EdgeInsets.only(top: 8, bottom: 120),
+                    padding: const EdgeInsets.only(top: 8, bottom: 160),
                     itemCount: list.length,
                     itemBuilder: (context, index) {
                       final staff = list[index];
@@ -205,6 +213,61 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                     },
                   ),
                 ),
+                if (s.selected.isNotEmpty)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 86 + MediaQuery.of(context).padding.bottom,
+                    child: IgnorePointer(
+                      child: SizedBox(
+                        child: Container(
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          alignment: Alignment.center,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Color.lerp(
+                                Colors.white,
+                                Theme.of(context).colorScheme.primaryContainer,
+                                0.45,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_outline_outlined,
+                                  size: 18,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'ជ្រើសរើសបានចំនួន ${kh(s.selected.length)} អង្គ',
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   left: 0,
                   right: 0,
@@ -215,7 +278,7 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                       child: Container(
                         color: Colors.transparent,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        alignment: Alignment.bottomLeft,
+                        alignment: Alignment.bottomCenter,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -296,16 +359,17 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
             },
           ),
           const SizedBox(height: 8),
-          FloatingActionButton.extended(
+          FloatingActionButton(
             heroTag: 'next',
-            icon: const Icon(Icons.arrow_forward),
-            label: const Text('បន្ទាប់'),
+            tooltip: 'បន្ទាប់',
+            shape: CircleBorder(),
             onPressed: s.selected.isEmpty
                 ? null
                 : () => Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (_) => const AssignmentExtrasScreen())),
+            child: const Icon(Icons.arrow_forward),
           ),
         ],
       ),

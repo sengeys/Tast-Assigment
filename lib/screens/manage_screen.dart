@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../core/khmer.dart';
+import '../core/input_styles.dart';
 import '../core/roles.dart';
 import '../core/staff_avatar_color.dart';
 import '../core/statuses.dart';
@@ -375,9 +376,15 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
             : _searchExpanded
                 ? TextField(
                     autofocus: true,
+                    style: appInputTextStyle,
                     decoration: const InputDecoration(
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
                       hintText: 'ស្វែងរកឈ្មោះ',
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
                       isDense: true,
                     ),
                     onChanged: (value) => setState(() => query = value),
