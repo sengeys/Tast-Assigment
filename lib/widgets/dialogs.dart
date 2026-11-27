@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../core/input_styles.dart';
+import '../core/khmer_lunar.dart';
 
 String formatPhoneNumber(String value) {
   final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
@@ -104,12 +105,13 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
     {String name = '',
     String role = '',
     String phone = '',
-    String age = '',
+    String ordinationDate = '',
     String status = '',
     List<String> roleOptions = const [],
     List<String> statusOptions = const [],
     bool isStaff = false,
-    bool includeAgeAndPhone = true}) {
+    bool requireOrdinationDate = false,
+    bool includePhone = true}) {
   final n = TextEditingController(text: name);
   String roleValue = role; // '' = មិនទាន់ជ្រើសរើស
   String statusValue = statusOptions.contains(status)
@@ -118,106 +120,164 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
           ? ''
           : statusOptions.first;
   final p = TextEditingController(text: formatPhoneNumber(phone));
-  final a = TextEditingController(text: age);
+  DateTime? ordinationDateValue = DateTime.tryParse(ordinationDate);
+  var ordinationDateError = false;
   return showDialog<Map<String, String>>(
     context: context,
-    builder: (_) => AlertDialog(
-      title: Text(title),
-      content: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          AppInputFocusGlow(
-            child: TextField(
-                controller: n,
-                autofocus: true,
-                style: appInputTextStyle,
-                decoration: const InputDecoration(
-                    labelText: 'ឈ្មោះ', border: OutlineInputBorder())),
-          ),
-          SizedBox(height: 12),
-          if (isStaff) ...[
-            StatefulBuilder(
-              builder: (ctx, setSt) {
-                // បញ្ចូលតម្លៃបច្ចុប្បន្នផង ដើម្បីកុំឱ្យតួនាទីចាស់ (ក្រៅបញ្ជី) បាត់
-                final items = <String>{
-                  ...roleOptions,
-                  if (roleValue.isNotEmpty) roleValue
-                }.toList();
-                return AppDropdownButtonFormField<String>(
-                  initialValue: roleValue,
-                  isExpanded: true,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, setDialogState) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            AppInputFocusGlow(
+              child: TextField(
+                  controller: n,
+                  autofocus: true,
+                  style: appInputTextStyle,
                   decoration: const InputDecoration(
-                      labelText: 'តួនាទី', border: OutlineInputBorder()),
-                  items: [
-                    const DropdownMenuItem(
-                        value: '',
-                        child: Text('ជ្រើសរើសតួនាទី...',
-                            style: TextStyle(color: Colors.grey))),
-                    for (final x in items)
-                      DropdownMenuItem(value: x, child: Text(x)),
-                  ],
-                  onChanged: (v) => setSt(() => roleValue = v ?? ''),
-                );
-              },
+                      labelText: 'ឈ្មោះ', border: OutlineInputBorder())),
             ),
             const SizedBox(height: 12),
-            if (includeAgeAndPhone) ...[
+            if (isStaff) ...[
               AppInputFocusGlow(
-                child: TextField(
-                    controller: a,
-                    keyboardType: TextInputType.number,
-                    style: appInputTextStyle,
-                    decoration: const InputDecoration(
-                        labelText: 'វស្សា', border: OutlineInputBorder())),
+                child: InkWell(
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final firstDate = DateTime(1800);
+                    final currentDate = ordinationDateValue ?? now;
+                    final initialDate = currentDate.isAfter(now)
+                        ? now
+                        : currentDate.isBefore(firstDate)
+                            ? firstDate
+                            : currentDate;
+                    final date = await showDatePicker(
+                      context: dialogContext,
+                      initialDate: initialDate,
+                      firstDate: firstDate,
+                      lastDate: now,
+                    );
+                    if (date != null) {
+                      setDialogState(() {
+                        ordinationDateValue =
+                            DateTime(date.year, date.month, date.day);
+                        ordinationDateError = false;
+                      });
+                    }
+                  },
+                  child: InputDecorator(
+                    isEmpty: ordinationDateValue == null,
+                    decoration: InputDecoration(
+                      labelText:
+                          'ថ្ងៃខែឆ្នាំបួស${requireOrdinationDate ? ' *' : ''}',
+                      border: const OutlineInputBorder(),
+                      errorText: ordinationDateError
+                          ? 'សូមជ្រើសរើសថ្ងៃខែឆ្នាំបួស'
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            ordinationDateValue == null
+                                ? 'ជ្រើសរើសថ្ងៃខែឆ្នាំបួស'
+                                : khDateFull(ordinationDateValue!),
+                          ),
+                        ),
+                        const Icon(Icons.calendar_today_outlined, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
+              StatefulBuilder(
+                builder: (ctx, setSt) {
+                  // បញ្ចូលតម្លៃបច្ចុប្បន្នផង ដើម្បីកុំឱ្យតួនាទីចាស់ (ក្រៅបញ្ជី) បាត់
+                  final items = <String>{
+                    ...roleOptions,
+                    if (roleValue.isNotEmpty) roleValue
+                  }.toList();
+                  return AppInputFocusGlow(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: roleValue,
+                      isExpanded: true,
+                      style: appInputTextStyle,
+                      decoration: const InputDecoration(
+                          labelText: 'តួនាទី', border: OutlineInputBorder()),
+                      items: [
+                        const DropdownMenuItem(
+                            value: '',
+                            child: Text('ជ្រើសរើសតួនាទី...',
+                                style: TextStyle(color: Colors.grey))),
+                        for (final x in items)
+                          DropdownMenuItem(value: x, child: Text(x)),
+                      ],
+                      onChanged: (v) => setSt(() => roleValue = v ?? ''),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              if (includePhone)
+                AppInputFocusGlow(
+                  child: TextField(
+                      controller: p,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: const [PhoneNumberInputFormatter()],
+                      style: appInputTextStyle,
+                      decoration: const InputDecoration(
+                          labelText: 'លេខទូរស័ព្ទ',
+                          border: OutlineInputBorder())),
+                ),
+            ],
+            if (statusOptions.isNotEmpty) ...[
+              const SizedBox(height: 12),
               AppInputFocusGlow(
-                child: TextField(
-                    controller: p,
-                    keyboardType: TextInputType.phone,
-                    inputFormatters: const [PhoneNumberInputFormatter()],
-                    style: appInputTextStyle,
-                    decoration: const InputDecoration(
-                        labelText: 'លេខទូរស័ព្ទ',
-                        border: OutlineInputBorder())),
+                child: DropdownButtonFormField<String>(
+                  initialValue: statusValue,
+                  isExpanded: true,
+                  style: appInputTextStyle,
+                  decoration: const InputDecoration(
+                    labelText: 'ស្ថានភាព',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final option in statusOptions)
+                      DropdownMenuItem(value: option, child: Text(option)),
+                  ],
+                  onChanged: (value) => statusValue = value ?? statusValue,
+                ),
               ),
             ],
-          ],
-          if (statusOptions.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            AppDropdownButtonFormField<String>(
-              initialValue: statusValue,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'ស្ថានភាព',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                for (final option in statusOptions)
-                  DropdownMenuItem(value: option, child: Text(option)),
-              ],
-              onChanged: (value) => statusValue = value ?? statusValue,
-            ),
-          ],
-        ]),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('បោះបង់')),
-        FilledButton(
-          onPressed: () {
-            if (n.text.trim().isEmpty) return;
-            Navigator.pop(context, {
-              'name': n.text.trim(),
-              'role': roleValue,
-              'phone': p.text.trim(),
-              'age': a.text.trim(),
-              'status': statusValue,
-            });
-          },
-          child: const Text('រក្សាទុក'),
+          ]),
         ),
-      ],
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('បោះបង់')),
+          FilledButton(
+            onPressed: () {
+              if (n.text.trim().isEmpty) return;
+              if (isStaff &&
+                  requireOrdinationDate &&
+                  ordinationDateValue == null) {
+                setDialogState(() => ordinationDateError = true);
+                return;
+              }
+              Navigator.pop(dialogContext, {
+                'name': n.text.trim(),
+                'role': roleValue,
+                'phone': p.text.trim(),
+                'ordination_date':
+                    ordinationDateValue?.toIso8601String().split('T').first ??
+                        '',
+                'status': statusValue,
+              });
+            },
+            child: const Text('រក្សាទុក'),
+          ),
+        ],
+      ),
     ),
   );
 }

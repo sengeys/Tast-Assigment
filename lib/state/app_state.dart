@@ -56,6 +56,7 @@ class AppState extends ChangeNotifier {
         savedThemeIndex < themeSeeds.length) {
       _themeSeedIndex = savedThemeIndex;
     }
+    await Db.applyAnnualVassaUpdate();
     staff = List.of(await Db.all('staff'))..sort(compareStaff);
     leaders = await Db.all('leaders');
     templates = await Db.all('templates');

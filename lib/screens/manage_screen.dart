@@ -134,7 +134,7 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
       name: record['name'] ?? '',
       role: record['role'] ?? '',
       phone: record['phone'] ?? '',
-      age: record['age']?.toString() ?? '',
+      ordinationDate: (record['ordination_date'] ?? '').toString(),
       status: (record['status'] ?? '').toString(),
       roleOptions: roleOptions,
       statusOptions: widget.category.statusOptions,
@@ -145,8 +145,54 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
       'name': values['name'],
       if (widget.category.withRole) 'role': values['role'],
       if (widget.category.withRole) 'phone': values['phone'],
-      if (widget.category.withRole) 'age': int.tryParse(values['age'] ?? ''),
+      if (widget.category.withRole)
+        'ordination_date': values['ordination_date'],
       if (widget.category.statusOptions.isNotEmpty) 'status': values['status'],
+    });
+    await state.load();
+  }
+
+  Future<void> _editStatus(
+    AppState state,
+    Map<String, dynamic> record,
+  ) async {
+    final options = widget.category.statusOptions;
+    if (options.isEmpty) return;
+    final currentStatus = (record['status'] ?? options.first).toString();
+    final selectedStatus = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('កែប្រែស្ថានភាព'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final status in options)
+                ListTile(
+                  dense: true,
+                  selected: status == currentStatus,
+                  leading: Icon(
+                    status == currentStatus
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                  ),
+                  title: Text(status),
+                  onTap: () => Navigator.pop(dialogContext, status),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('បោះបង់'),
+          ),
+        ],
+      ),
+    );
+    if (selectedStatus == null || selectedStatus == currentStatus) return;
+    await Db.update(widget.category.table, record['id'] as int, {
+      'status': selectedStatus,
     });
     await state.load();
   }
@@ -311,13 +357,15 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
       roleOptions: roleOptions,
       statusOptions: widget.category.statusOptions,
       isStaff: widget.category.withRole,
+      requireOrdinationDate: widget.category.withRole,
     );
     if (values == null) return;
     await Db.insert(widget.category.table, {
       'name': values['name'],
       if (widget.category.withRole) 'role': values['role'],
       if (widget.category.withRole) 'phone': values['phone'],
-      if (widget.category.withRole) 'age': int.tryParse(values['age'] ?? ''),
+      if (widget.category.withRole)
+        'ordination_date': values['ordination_date'],
       if (widget.category.statusOptions.isNotEmpty) 'status': values['status'],
     });
     await state.load();
@@ -540,7 +588,9 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
                           subtitle: subtitle.isEmpty ? null : Text(subtitle),
                           onTap: _selectionMode
                               ? () => _toggleSelection(record)
-                              : () => _edit(state, roleOptions, record),
+                              : widget.category.statusOptions.isEmpty
+                                  ? () => _edit(state, roleOptions, record)
+                                  : () => _editStatus(state, record),
                           onLongPress: _selectionMode
                               ? () => _toggleSelection(record)
                               : () => _showRecordActions(

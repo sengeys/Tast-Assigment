@@ -2,13 +2,16 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../core/vassa.dart';
+
 class Db {
   static Database? _db;
+  static const _lastVassaUpdateKey = 'last_vassa_update_year';
   static Future<Database> get instance async => _db ??= await _open();
 
   static Future<Database> _open() async {
     final path = p.join(await getDatabasesPath(), 'task_assign.db');
-    return openDatabase(path, version: 12, onUpgrade: (d, oldV, newV) async {
+    return openDatabase(path, version: 13, onUpgrade: (d, oldV, newV) async {
       if (oldV < 5) {
         await d.execute('ALTER TABLE templates ADD COLUMN note TEXT');
       }
@@ -62,7 +65,8 @@ class Db {
             "ALTER TABLE leaders ADD COLUMN status TEXT NOT NULL DEFAULT 'អាចធ្វើបាន'");
       }
       if (oldV < 10) {
-        await d.execute('ALTER TABLE task_history ADD COLUMN leader_id INTEGER');
+        await d
+            .execute('ALTER TABLE task_history ADD COLUMN leader_id INTEGER');
         await _createTaskPreachers(d);
       }
       if (oldV < 11) {
@@ -70,8 +74,7 @@ class Db {
             'ALTER TABLE task_history ADD COLUMN preach_dharma INTEGER NOT NULL DEFAULT 0');
         await d.execute(
             "ALTER TABLE task_history ADD COLUMN precepts_type TEXT NOT NULL DEFAULT ''");
-        await d.execute(
-            'UPDATE task_history SET preach_dharma = 1 WHERE id IN '
+        await d.execute('UPDATE task_history SET preach_dharma = 1 WHERE id IN '
             '(SELECT history_id FROM task_preachers)');
       }
       if (oldV < 12) {
@@ -84,10 +87,19 @@ class Db {
           "WHERE h.precepts_type != ''",
         );
       }
+      if (oldV < 13) {
+        await d.execute('ALTER TABLE staff ADD COLUMN ordination_date TEXT');
+        await d.execute(
+          'CREATE TABLE app_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+        );
+      }
     }, onCreate: (d, v) async {
       await d.execute('CREATE TABLE staff('
-          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT, phone TEXT, age INTEGER, '
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT, phone TEXT, age INTEGER, ordination_date TEXT, '
           "status TEXT NOT NULL DEFAULT 'នៅវត្ត')");
+      await d.execute(
+        'CREATE TABLE app_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+      );
       await d.execute('CREATE TABLE leaders('
           'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, '
           "status TEXT NOT NULL DEFAULT 'អាចធ្វើបាន')");
@@ -142,15 +154,15 @@ class Db {
       'staff_name TEXT, task_date TEXT, start_min INTEGER, end_min INTEGER, '
       'direct INTEGER NOT NULL DEFAULT 0)');
 
-  static Future<void> _createTaskPreachers(Database d) => d.execute(
-      'CREATE TABLE task_preachers('
-      'history_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, '
-      'staff_name TEXT NOT NULL, PRIMARY KEY(history_id, staff_id))');
+  static Future<void> _createTaskPreachers(Database d) =>
+      d.execute('CREATE TABLE task_preachers('
+          'history_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, '
+          'staff_name TEXT NOT NULL, PRIMARY KEY(history_id, staff_id))');
 
-  static Future<void> _createTaskPreceptGivers(Database d) => d.execute(
-      'CREATE TABLE task_precept_givers('
-      'history_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, '
-      'staff_name TEXT NOT NULL, PRIMARY KEY(history_id, staff_id))');
+  static Future<void> _createTaskPreceptGivers(Database d) =>
+      d.execute('CREATE TABLE task_precept_givers('
+          'history_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, '
+          'staff_name TEXT NOT NULL, PRIMARY KEY(history_id, staff_id))');
 
   static Future<void> deleteHistory(int id) async {
     final d = await instance;
@@ -167,6 +179,96 @@ class Db {
 
   static Future<int> insert(String table, Map<String, Object?> v) async =>
       (await instance).insert(table, v);
+
+  static Future<void> applyAnnualVassaUpdate({DateTime? now}) async {
+    final todayValue = now ?? DateTime.now();
+    final today = DateTime(todayValue.year, todayValue.month, todayValue.day);
+    final database = await instance;
+    await database.transaction((transaction) async {
+      final metadata = await transaction.query(
+        'app_meta',
+        columns: ['value'],
+        where: 'key = ?',
+        whereArgs: [_lastVassaUpdateKey],
+        limit: 1,
+      );
+      final lastProcessedYear = metadata.isEmpty
+          ? null
+          : int.tryParse((metadata.first['value'] ?? '').toString());
+      final firstYear =
+          lastProcessedYear == null ? today.year : lastProcessedYear + 1;
+
+      final staff = (await transaction.query('staff'))
+          .map((record) => Map<String, Object?>.from(record))
+          .toList();
+      final recalculatedIds = <int>{};
+      for (final record in staff) {
+        if (isVassaExcludedStatus(record['status'])) continue;
+        final id = record['id'];
+        if (id is! int) continue;
+
+        final updatedAge = completedVassaCount(
+          ordinationDate: record['ordination_date'],
+          throughDate: today,
+        );
+        if (updatedAge == null) continue;
+
+        final currentAge = int.tryParse((record['age'] ?? '').toString()) ?? 0;
+        if (currentAge != updatedAge) {
+          await transaction.update(
+            'staff',
+            {'age': updatedAge},
+            where: 'id = ?',
+            whereArgs: [id],
+          );
+        }
+        record['age'] = updatedAge;
+        recalculatedIds.add(id);
+      }
+
+      int? processedYear;
+      for (var year = firstYear; year <= today.year; year++) {
+        final incrementDate = vassaIncrementDateForYear(year);
+        final vassaStartDate = vassaStartDateForYear(year);
+        if (incrementDate == null || vassaStartDate == null) break;
+        if (today.isBefore(incrementDate)) break;
+
+        for (final record in staff) {
+          final id = record['id'];
+          if (id is! int || recalculatedIds.contains(id)) continue;
+          if (!shouldIncrementVassa(
+            status: record['status'],
+            ordinationDate: record['ordination_date'],
+            vassaStartDate: vassaStartDate,
+          )) {
+            continue;
+          }
+          final currentAge =
+              int.tryParse((record['age'] ?? '').toString()) ?? 0;
+          final updatedAge = currentAge + 1;
+          await transaction.update(
+            'staff',
+            {'age': updatedAge},
+            where: 'id = ?',
+            whereArgs: [id],
+          );
+          record['age'] = updatedAge;
+        }
+        processedYear = year;
+      }
+
+      if (processedYear != null) {
+        await transaction.insert(
+          'app_meta',
+          {
+            'key': _lastVassaUpdateKey,
+            'value': processedYear.toString(),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
 
   static Future<void> update(
           String table, int id, Map<String, Object?> v) async =>

@@ -39,9 +39,10 @@ class DetailsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           ListTile(
+            tileColor: Colors.white,
             shape: RoundedRectangleBorder(
                 side: const BorderSide(color: Colors.grey),
-                borderRadius: BorderRadius.circular(4)),
+                borderRadius: BorderRadius.circular(10)),
             leading: const Icon(Icons.calendar_today),
             title: Text(khDateFull(s.date)),
             onTap: () async {
@@ -245,9 +246,10 @@ class DetailsScreen extends StatelessWidget {
   Widget _timeTile(BuildContext context, String label, TimeOfDay? t,
       ValueChanged<TimeOfDay> onPick) {
     return ListTile(
+      tileColor: Colors.white,
       shape: RoundedRectangleBorder(
           side: const BorderSide(color: Colors.grey),
-          borderRadius: BorderRadius.circular(4)),
+          borderRadius: BorderRadius.circular(10)),
       title: Text(label, style: const TextStyle(fontSize: 12)),
       subtitle: Text(t == null ? '—' : khTime(t),
           style: const TextStyle(fontSize: 15)),

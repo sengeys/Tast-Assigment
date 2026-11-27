@@ -346,13 +346,15 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                 ],
                 statusOptions: monkStatuses,
                 isStaff: true,
-                includeAgeAndPhone: false,
+                requireOrdinationDate: true,
+                includePhone: false,
               );
               if (value == null) return;
               await Db.insert('staff', {
                 'name': value['name'],
                 'role': value['role'],
                 'phone': '',
+                'ordination_date': value['ordination_date'],
                 'status': value['status'],
               });
               await s.load();
