@@ -701,12 +701,13 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
   Widget _timeTile(
       String label, TimeOfDay? t, ValueChanged<TimeOfDay?> onPick) {
     return ListTile(
+      tileColor: Colors.white,
       shape: RoundedRectangleBorder(
           side: const BorderSide(color: Colors.grey),
-          borderRadius: BorderRadius.circular(4)),
+          borderRadius: BorderRadius.circular(10)),
       title: Text(label, style: const TextStyle(fontSize: 12)),
       subtitle: Text(t == null ? '—' : khTime(t),
-          style: const TextStyle(fontSize: 15)),
+          style: const TextStyle(fontSize: 16, color: Color(0xFF19191D))),
       trailing: t == null
           ? null
           : IconButton(
@@ -759,9 +760,10 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
           ),
           const SizedBox(height: 12),
           ListTile(
+            tileColor: Colors.white,
             shape: RoundedRectangleBorder(
                 side: const BorderSide(color: Colors.grey),
-                borderRadius: BorderRadius.circular(4)),
+                borderRadius: BorderRadius.circular(10)),
             leading: const Icon(Icons.calendar_today),
             title: Text(khDateFull(date)),
             onTap: () async {
@@ -857,7 +859,17 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
                   onChanged: (v) => setState(() => leaderId = v),
                 ),
               ),
+              SizedBox(
+                width: 12,
+              ),
               IconButton(
+                padding: EdgeInsets.all(14),
+                style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(color: Colors.grey.shade400)),
+                    backgroundColor: Color.lerp(
+                        Theme.of(context).primaryColor, Colors.white, 1)),
                 icon: const Icon(Icons.add_circle_outline),
                 tooltip: 'បន្ថែមអាចារ្យថ្មី',
                 onPressed: () => _addLeader(s),
@@ -887,7 +899,17 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
                   onChanged: (v) => setState(() => place = v),
                 ),
               ),
+              SizedBox(
+                width: 12,
+              ),
               IconButton(
+                padding: EdgeInsets.all(14),
+                style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(10)),
+                    backgroundColor: Color.lerp(
+                        Theme.of(context).primaryColor, Colors.white, 1)),
                 icon: const Icon(Icons.add_circle_outline),
                 tooltip: 'បន្ថែមទីតាំងថ្មី',
                 onPressed: () => _addPlace(s),

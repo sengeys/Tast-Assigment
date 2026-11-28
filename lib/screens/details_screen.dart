@@ -183,7 +183,7 @@ class DetailsScreen extends StatelessWidget {
                     backgroundColor: Color.lerp(
                         Theme.of(context).primaryColor, Colors.white, 1),
                     foregroundColor: Colors.grey.shade600),
-                icon: const Icon(Icons.add_circle),
+                icon: const Icon(Icons.add_circle_outline),
                 onPressed: () async {
                   final n = await askText(context, 'អាចារ្យថ្មី');
                   if (n == null || n.isEmpty) return;
@@ -230,7 +230,7 @@ class DetailsScreen extends StatelessWidget {
                         Theme.of(context).primaryColor, Colors.white, 1),
                     foregroundColor: Colors.grey.shade600),
                 icon: const Icon(
-                  Icons.add_circle,
+                  Icons.add_circle_outline,
                 ),
                 onPressed: () async {
                   final n = await askText(context, 'ទីតាំងថ្មី');
