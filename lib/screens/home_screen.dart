@@ -14,10 +14,12 @@ import 'manage_screen.dart';
 import 'notification_inbox_screen.dart';
 import 'notification_settings_screen.dart';
 import '../services/notification_service.dart';
+import '../widgets/dialogs.dart';
+import '../widgets/reminder_preset_picker.dart';
 import 'stats_screen.dart';
 import 'templates_screen.dart';
 
-enum _HistoryAction { edit, delete, copy, select }
+enum _HistoryAction { edit, delete, copy, select, reminder }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -85,6 +87,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: const Text('កែប្រែ'),
                 onTap: () => Navigator.pop(sheetContext, _HistoryAction.edit),
               ),
+            if (!historyEnded(history))
+              ListTile(
+                leading: const Icon(Icons.alarm),
+                title: const Text('កំណត់ការរំលឹក'),
+                onTap: () =>
+                    Navigator.pop(sheetContext, _HistoryAction.reminder),
+              ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
               title: const Text('លុប'),
@@ -115,7 +124,65 @@ class _HomeScreenState extends State<HomeScreen> {
         copyHistory(context, history);
       case _HistoryAction.select:
         _toggleHistorySelection(history);
+      case _HistoryAction.reminder:
+        await _setHistoryReminder(state, history);
     }
+  }
+
+  Future<void> _setHistoryReminder(
+    AppState state,
+    Map<String, dynamic> history,
+  ) async {
+    final id = history['id'];
+    final date = DateTime.tryParse((history['task_date'] ?? '').toString());
+    final startMinute = history['start_min'];
+    if (id is! int ||
+        date == null ||
+        startMinute is! int ||
+        startMinute < 0 ||
+        startMinute >= 24 * 60) {
+      showSnack(context, 'សូមកំណត់ថ្ងៃ និងម៉ោងចាប់ផ្ដើមកម្មវិធីជាមុនសិន');
+      return;
+    }
+
+    final eventAt = DateTime(date.year, date.month, date.day)
+        .add(Duration(minutes: startMinute));
+    if (!eventAt.isAfter(DateTime.now())) {
+      showSnack(context, 'កម្មវិធីបានចាប់ផ្ដើមហើយ មិនអាចកំណត់ការរំលឹកបានទេ');
+      return;
+    }
+
+    final selectedId = await showReminderPresetPicker(
+      context,
+      selectedId: history['reminder_preset_id']?.toString(),
+      allowDefault: true,
+    );
+    if (!mounted || selectedId == null) return;
+
+    final reminderId =
+        selectedId == useGlobalReminderSetting ? null : selectedId;
+    if (reminderId != null) {
+      final presets = await NotificationService.instance.loadReminderPresets();
+      if (!mounted) return;
+      final preset = presets.where((item) => item.id == reminderId).firstOrNull;
+      if (preset == null) {
+        showSnack(context, 'រកមិនឃើញការកំណត់រំលឹកនេះទេ');
+        return;
+      }
+      if (!preset.scheduledAt(eventAt).isBefore(eventAt)) {
+        showSnack(context, 'ពេលរំលឹកត្រូវតែមុនម៉ោងចាប់ផ្ដើមកម្មវិធី');
+        return;
+      }
+    }
+
+    await Db.update(
+      'task_history',
+      id,
+      {'reminder_preset_id': reminderId},
+    );
+    await state.load();
+    await NotificationService.instance.rescheduleAll();
+    if (mounted) showSnack(context, 'បានកំណត់ការរំលឹករួចរាល់ ✔');
   }
 
   Future<void> _deleteSelectedHistory(AppState state) async {
@@ -438,7 +505,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               onChanged: (_) => _toggleHistorySelection(h),
                             )
                           : Icon(
-                              ended ? Icons.check_circle_outline_rounded : Icons.schedule,
+                              ended
+                                  ? Icons.check_circle_outline_rounded
+                                  : Icons.schedule,
                               color: colors.primary.withValues(alpha: 1),
                             ),
                       title: Text('${h['title']}  •  ${kh(count)} អង្គ'),

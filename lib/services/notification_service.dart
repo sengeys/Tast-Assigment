@@ -11,6 +11,7 @@ import 'package:timezone/timezone.dart' as timezone;
 
 import '../core/khmer.dart';
 import '../data/db.dart';
+import '../models/reminder_preset.dart';
 
 class ReminderSettings {
   const ReminderSettings({
@@ -39,6 +40,7 @@ class NotificationService {
 
   static const _enabledKey = 'taskNotificationsEnabled';
   static const _leadMinutesKey = 'taskNotificationLeadMinutes';
+  static const _reminderPresetsKey = 'reminderPresets';
   static const _inboxKey = 'notificationInbox';
   static const _pendingInboxKey = 'pendingNotificationInbox';
   static const _leadMinuteOptions = {0, 5, 10, 15, 30, 60};
@@ -52,6 +54,16 @@ class NotificationService {
   bool get _supportsScheduledNotifications =>
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
+
+  ReminderPreset? _findPreset(
+    List<ReminderPreset> presets,
+    String? id,
+  ) {
+    for (final preset in presets) {
+      if (preset.id == id) return preset;
+    }
+    return null;
+  }
 
   Future<void> initialize({void Function()? onNotificationTap}) async {
     if (_initialized) return;
@@ -185,35 +197,52 @@ class NotificationService {
     NotificationResponse response,
     void Function()? onNotificationTap,
   ) async {
-    final historyId = int.tryParse(response.payload ?? '');
-    Map<String, dynamic>? historyItem;
-    if (historyId != null) {
+    final payload = response.payload ?? '';
+    final isTemplateReminder = payload.startsWith('template:');
+    final recordId = int.tryParse(
+      isTemplateReminder ? payload.substring('template:'.length) : payload,
+    );
+    Map<String, dynamic>? record;
+    if (recordId != null) {
       final rows = await (await Db.instance).query(
-        'task_history',
+        isTemplateReminder ? 'templates' : 'task_history',
         where: 'id = ?',
-        whereArgs: [historyId],
+        whereArgs: [recordId],
         limit: 1,
       );
-      if (rows.isNotEmpty) historyItem = rows.first;
+      if (rows.isNotEmpty) record = rows.first;
     }
 
     final eventDate = DateTime.tryParse(
-      (historyItem?['task_date'] ?? '').toString(),
+      (record?['task_date'] ?? '').toString(),
     );
-    final startMinute = historyItem?['start_min'];
-    final place = (historyItem?['place'] ?? '').toString().trim();
+    final startTime = (record?['start_time'] ?? '').toString().split(':');
+    final startMinute = record?['start_min'];
+    final timeText = isTemplateReminder
+        ? startTime.length == 2 &&
+                int.tryParse(startTime[0]) != null &&
+                int.tryParse(startTime[1]) != null
+            ? khTime(TimeOfDay(
+                hour: int.parse(startTime[0]), minute: int.parse(startTime[1])))
+            : null
+        : startMinute is int
+            ? khTime(
+                TimeOfDay(hour: startMinute ~/ 60, minute: startMinute % 60))
+            : null;
+    final place = (record?['place'] ?? '').toString().trim();
     final isEarlyReminder = response.id != null && response.id!.isEven;
     final details = <String>[
       if (eventDate != null) khDate(eventDate),
-      if (startMinute is int)
-        khTime(TimeOfDay(hour: startMinute ~/ 60, minute: startMinute % 60)),
+      if (timeText != null) timeText,
       if (place.isNotEmpty) place,
     ];
     final entry = <String, dynamic>{
       'id': (response.id ?? DateTime.now().microsecondsSinceEpoch).toString(),
-      'title': historyItem == null
+      'title': record == null
           ? 'Notification'
-          : '${isEarlyReminder ? 'ជិតដល់ម៉ោង' : 'ដល់ម៉ោង'}: ${historyItem['title']}',
+          : isTemplateReminder
+              ? 'រំលឹកគំរូបណ្ដោះអាសន្ន: ${record['title']}'
+              : '${isEarlyReminder ? 'ជិតដល់ម៉ោង' : 'ដល់ម៉ោង'}: ${record['title']}',
       'body': details.join(' • '),
       'receivedAt': DateTime.now().toIso8601String(),
       'isRead': false,
@@ -228,6 +257,62 @@ class NotificationService {
     return ReminderSettings(
       enabled: enabled,
       leadMinutes: _leadMinuteOptions.contains(savedLead) ? savedLead : 15,
+    );
+  }
+
+  Future<List<ReminderPreset>> loadReminderPresets() async {
+    final stored = await _preferences.getStringList(_reminderPresetsKey);
+    if (stored == null) return ReminderPreset.defaults;
+    final presets = stored
+        .map((item) => ReminderPreset.fromJson(jsonDecode(item)))
+        .toList();
+    return presets.isEmpty ? ReminderPreset.defaults : presets;
+  }
+
+  Future<void> saveReminderPresets(List<ReminderPreset> presets) async {
+    final ids = presets.map((preset) => preset.id).toSet();
+    if (ids.length != presets.length) {
+      throw ArgumentError('Reminder preset ids must be unique');
+    }
+    if (!ReminderPreset.defaults
+        .every((defaultPreset) => ids.contains(defaultPreset.id))) {
+      throw ArgumentError('All built-in reminder presets must be retained');
+    }
+    await _preferences.setStringList(
+      _reminderPresetsKey,
+      presets.map((preset) => jsonEncode(preset.toJson())).toList(),
+    );
+    await rescheduleAll();
+  }
+
+  Future<void> deleteReminderPreset(String id) async {
+    if (ReminderPreset.defaults.any((preset) => preset.id == id)) {
+      throw ArgumentError('Built-in reminder presets cannot be deleted');
+    }
+    final database = await Db.instance;
+    await database.transaction((transaction) async {
+      await transaction.update(
+        'templates',
+        {'reminder_preset_id': 'evening'},
+        where: 'reminder_preset_id = ? AND is_temporary = 1',
+        whereArgs: [id],
+      );
+      await transaction.update(
+        'templates',
+        {'reminder_preset_id': null},
+        where: 'reminder_preset_id = ? AND is_temporary = 0',
+        whereArgs: [id],
+      );
+      await transaction.update(
+        'task_history',
+        {'reminder_preset_id': null},
+        where: 'reminder_preset_id = ?',
+        whereArgs: [id],
+      );
+    });
+    final presets = await loadReminderPresets();
+    await saveReminderPresets(
+      presets.where((preset) => preset.id != id).toList(),
     );
   }
 
@@ -313,6 +398,7 @@ class NotificationService {
     }
 
     final now = DateTime.now();
+    final presets = await loadReminderPresets();
     final history = await Db.all('task_history');
     for (final item in history) {
       final date = DateTime.tryParse((item['task_date'] ?? '').toString());
@@ -330,48 +416,128 @@ class NotificationService {
           .add(Duration(minutes: startMin));
       if (!eventAt.isAfter(now)) continue;
 
-      if (settings.leadMinutes > 0) {
-        final reminderAt =
-            eventAt.subtract(Duration(minutes: settings.leadMinutes));
-        if (reminderAt.isAfter(now)) {
-          await _schedule(
-            historyId: id,
-            isEarlyReminder: true,
-            eventAt: eventAt,
-            scheduledAt: reminderAt,
-            leadMinutes: settings.leadMinutes,
-            scheduleMode: scheduleMode,
-            item: item,
-          );
-        }
+      final selectedPresetId = item['reminder_preset_id']?.toString();
+      final selectedPreset = _findPreset(presets, selectedPresetId);
+      final reminderAt = selectedPreset?.scheduledAt(eventAt) ??
+          (settings.leadMinutes > 0
+              ? eventAt.subtract(Duration(minutes: settings.leadMinutes))
+              : null);
+      if (reminderAt != null &&
+          reminderAt.isAfter(now) &&
+          reminderAt.isBefore(eventAt)) {
+        await _scheduleNotification(
+          notificationId: id * 2,
+          scheduledAt: reminderAt,
+          title: 'ជិតដល់ម៉ោង: ${_displayTitle(item)}',
+          body: _reminderBody(
+            item,
+            eventAt,
+            selectedPreset,
+            selectedPreset == null ? settings.leadMinutes : null,
+          ),
+          payload: id.toString(),
+          scheduleMode: scheduleMode,
+        );
       }
 
-      await _schedule(
-        historyId: id,
-        isEarlyReminder: false,
-        eventAt: eventAt,
+      await _scheduleNotification(
+        notificationId: id * 2 + 1,
         scheduledAt: eventAt,
-        leadMinutes: settings.leadMinutes,
+        title: 'ដល់ម៉ោង: ${_displayTitle(item)}',
+        body: _dueBody(item, eventAt),
+        payload: id.toString(),
         scheduleMode: scheduleMode,
-        item: item,
+      );
+    }
+
+    final templates = await Db.all('templates');
+    for (final item in templates) {
+      final id = item['id'];
+      final date = DateTime.tryParse((item['task_date'] ?? '').toString());
+      final startTime = (item['start_time'] ?? '').toString();
+      final startParts = startTime.split(':');
+      if (item['is_temporary'] != 1 ||
+          item['archived'] == 1 ||
+          id is! int ||
+          date == null ||
+          startParts.length != 2) {
+        continue;
+      }
+      final hour = int.tryParse(startParts[0]);
+      final minute = int.tryParse(startParts[1]);
+      if (hour == null ||
+          minute == null ||
+          hour < 0 ||
+          hour >= 24 ||
+          minute < 0 ||
+          minute >= 60) {
+        continue;
+      }
+
+      final eventAt = DateTime(date.year, date.month, date.day, hour, minute);
+      final presetId = (item['reminder_preset_id'] ?? 'evening').toString();
+      final preset = _findPreset(presets, presetId);
+      if (preset == null) continue;
+      final reminderAt = preset.scheduledAtForTemporaryTemplate(eventAt, now);
+      if (reminderAt == null) continue;
+
+      await _scheduleNotification(
+        notificationId: 1000000000 + id,
+        scheduledAt: reminderAt,
+        title: 'រំលឹកគំរូបណ្ដោះអាសន្ន: ${_displayTitle(item)}',
+        body: _eventBody(item, eventAt),
+        payload: 'template:$id',
+        scheduleMode: scheduleMode,
       );
     }
   }
 
-  Future<void> _schedule({
-    required int historyId,
-    required bool isEarlyReminder,
-    required DateTime eventAt,
-    required DateTime scheduledAt,
-    required int leadMinutes,
-    required AndroidScheduleMode scheduleMode,
-    required Map<String, dynamic> item,
-  }) async {
+  String _displayTitle(Map<String, dynamic> item) {
     final title = (item['title'] ?? '').toString().trim();
-    final displayTitle = title.isEmpty ? 'កម្មវិធី' : title;
+    return title.isEmpty ? 'កម្មវិធី' : title;
+  }
+
+  String _eventBody(Map<String, dynamic> item, DateTime eventAt) {
     final place = (item['place'] ?? '').toString().trim();
     final placeText = place.isEmpty ? '' : ' • ទីតាំង: $place';
     final time = khTime(TimeOfDay(hour: eventAt.hour, minute: eventAt.minute));
+    return '${khDate(eventAt)} ម៉ោង $time$placeText';
+  }
+
+  String _dueBody(Map<String, dynamic> item, DateTime eventAt) {
+    final place = (item['place'] ?? '').toString().trim();
+    final placeText = place.isEmpty ? '' : ' • ទីតាំង: $place';
+    final time = khTime(TimeOfDay(hour: eventAt.hour, minute: eventAt.minute));
+    return 'ដល់ពេលចាប់ផ្ដើមហើយ ($time)$placeText';
+  }
+
+  String _reminderBody(
+    Map<String, dynamic> item,
+    DateTime eventAt,
+    ReminderPreset? preset,
+    int? leadMinutes,
+  ) {
+    final time = khTime(TimeOfDay(hour: eventAt.hour, minute: eventAt.minute));
+    final place = (item['place'] ?? '').toString().trim();
+    final placeText = place.isEmpty ? '' : ' • ទីតាំង: $place';
+    final minutes = preset?.minutesBefore;
+    if (minutes != null) {
+      return 'នឹងចាប់ផ្ដើមនៅម៉ោង $time ក្នុង ${kh(minutes)} នាទីទៀត$placeText';
+    }
+    if (preset == null && leadMinutes != null) {
+      return 'នឹងចាប់ផ្ដើមនៅម៉ោង $time ក្នុង ${kh(leadMinutes)} នាទីទៀត$placeText';
+    }
+    return 'សូមត្រៀមសម្រាប់ ${_eventBody(item, eventAt)}';
+  }
+
+  Future<void> _scheduleNotification({
+    required int notificationId,
+    required DateTime scheduledAt,
+    required String title,
+    required String body,
+    required String payload,
+    required AndroidScheduleMode scheduleMode,
+  }) async {
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'task_reminders',
@@ -383,26 +549,19 @@ class NotificationService {
       iOS: DarwinNotificationDetails(),
     );
 
-    final notificationId = historyId * 2 + (isEarlyReminder ? 0 : 1);
-    final notificationTitle = isEarlyReminder
-        ? 'ជិតដល់ម៉ោង: $displayTitle'
-        : 'ដល់ម៉ោង: $displayTitle';
-    final notificationBody = isEarlyReminder
-        ? 'នឹងចាប់ផ្ដើមនៅម៉ោង $time ក្នុង ${kh(leadMinutes)} នាទីទៀត$placeText'
-        : 'ដល់ពេលចាប់ផ្ដើមហើយ ($time)$placeText';
     await _plugin.zonedSchedule(
       id: notificationId,
-      title: notificationTitle,
-      body: notificationBody,
+      title: title,
+      body: body,
       scheduledDate: timezone.TZDateTime.from(scheduledAt, timezone.local),
       notificationDetails: details,
       androidScheduleMode: scheduleMode,
-      payload: historyId.toString(),
+      payload: payload,
     );
     await _addPendingInboxEntry({
       'id': notificationId.toString(),
-      'title': notificationTitle,
-      'body': notificationBody,
+      'title': title,
+      'body': body,
       'scheduledAt': scheduledAt.toIso8601String(),
     });
   }

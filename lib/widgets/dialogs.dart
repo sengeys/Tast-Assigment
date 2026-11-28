@@ -111,6 +111,8 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
     List<String> statusOptions = const [],
     bool isStaff = false,
     bool requireOrdinationDate = false,
+    bool showOrdinationDate = true,
+    bool showStatus = true,
     bool includePhone = true}) {
   final n = TextEditingController(text: name);
   String roleValue = role; // '' = មិនទាន់ជ្រើសរើស
@@ -139,57 +141,59 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
             ),
             const SizedBox(height: 12),
             if (isStaff) ...[
-              AppInputFocusGlow(
-                child: InkWell(
-                  onTap: () async {
-                    final now = DateTime.now();
-                    final firstDate = DateTime(1800);
-                    final currentDate = ordinationDateValue ?? now;
-                    final initialDate = currentDate.isAfter(now)
-                        ? now
-                        : currentDate.isBefore(firstDate)
-                            ? firstDate
-                            : currentDate;
-                    final date = await showDatePicker(
-                      context: dialogContext,
-                      initialDate: initialDate,
-                      firstDate: firstDate,
-                      lastDate: now,
-                    );
-                    if (date != null) {
-                      setDialogState(() {
-                        ordinationDateValue =
-                            DateTime(date.year, date.month, date.day);
-                        ordinationDateError = false;
-                      });
-                    }
-                  },
-                  child: InputDecorator(
-                    isEmpty: ordinationDateValue == null,
-                    decoration: InputDecoration(
-                      labelText:
-                          'ថ្ងៃខែឆ្នាំបួស${requireOrdinationDate ? ' *' : ''}',
-                      border: const OutlineInputBorder(),
-                      errorText: ordinationDateError
-                          ? 'សូមជ្រើសរើសថ្ងៃខែឆ្នាំបួស'
-                          : null,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            ordinationDateValue == null
-                                ? 'ជ្រើសរើសថ្ងៃខែឆ្នាំបួស'
-                                : khDateFull(ordinationDateValue!),
+              if (showOrdinationDate) ...[
+                AppInputFocusGlow(
+                  child: InkWell(
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final firstDate = DateTime(1800);
+                      final currentDate = ordinationDateValue ?? now;
+                      final initialDate = currentDate.isAfter(now)
+                          ? now
+                          : currentDate.isBefore(firstDate)
+                              ? firstDate
+                              : currentDate;
+                      final date = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: initialDate,
+                        firstDate: firstDate,
+                        lastDate: now,
+                      );
+                      if (date != null) {
+                        setDialogState(() {
+                          ordinationDateValue =
+                              DateTime(date.year, date.month, date.day);
+                          ordinationDateError = false;
+                        });
+                      }
+                    },
+                    child: InputDecorator(
+                      isEmpty: ordinationDateValue == null,
+                      decoration: InputDecoration(
+                        // labelText:
+                        //     'ថ្ងៃខែឆ្នាំបួស${requireOrdinationDate ? ' *' : ''}',
+                        border: const OutlineInputBorder(),
+                        errorText: ordinationDateError
+                            ? 'សូមជ្រើសរើសថ្ងៃខែឆ្នាំបួស'
+                            : null,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              ordinationDateValue == null
+                                  ? 'ជ្រើសរើសថ្ងៃខែឆ្នាំបួស'
+                                  : khDateFull(ordinationDateValue!),
+                            ),
                           ),
-                        ),
-                        const Icon(Icons.calendar_today_outlined, size: 20),
-                      ],
+                          const Icon(Icons.calendar_today_outlined, size: 20),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
               StatefulBuilder(
                 builder: (ctx, setSt) {
                   // បញ្ចូលតម្លៃបច្ចុប្បន្នផង ដើម្បីកុំឱ្យតួនាទីចាស់ (ក្រៅបញ្ជី) បាត់
@@ -202,15 +206,62 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
                       initialValue: roleValue,
                       isExpanded: true,
                       style: appInputTextStyle,
+                      borderRadius: BorderRadius.circular(10),
                       decoration: const InputDecoration(
-                          labelText: 'តួនាទី', border: OutlineInputBorder()),
-                      items: [
-                        const DropdownMenuItem(
-                            value: '',
-                            child: Text('ជ្រើសរើសតួនាទី...',
-                                style: TextStyle(color: Colors.grey))),
+                        labelText: 'តួនាទី',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                        ),
+                      ),
+                      selectedItemBuilder: (_) => [
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'ជ្រើសរើសតួនាទី...',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
                         for (final x in items)
-                          DropdownMenuItem(value: x, child: Text(x)),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(x),
+                          ),
+                      ],
+                      items: [
+                        DropdownMenuItem(
+                          value: '',
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: const Text(
+                                  'ជ្រើសរើសតួនាទី...',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                              if (roleValue.isEmpty)
+                                Icon(
+                                  Icons.check,
+                                  color: Theme.of(ctx).colorScheme.primary,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                        ),
+                        for (final x in items)
+                          DropdownMenuItem(
+                            value: x,
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(x)),
+                                if (roleValue == x)
+                                  Icon(
+                                    Icons.check,
+                                    color: Theme.of(ctx).colorScheme.primary,
+                                    size: 20,
+                                  ),
+                              ],
+                            ),
+                          ),
                       ],
                       onChanged: (v) => setSt(() => roleValue = v ?? ''),
                     ),
@@ -230,7 +281,7 @@ Future<Map<String, String>?> recordDialog(BuildContext context, String title,
                           border: OutlineInputBorder())),
                 ),
             ],
-            if (statusOptions.isNotEmpty) ...[
+            if (showStatus && statusOptions.isNotEmpty) ...[
               const SizedBox(height: 12),
               AppInputFocusGlow(
                 child: DropdownButtonFormField<String>(

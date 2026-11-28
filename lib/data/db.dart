@@ -11,7 +11,7 @@ class Db {
 
   static Future<Database> _open() async {
     final path = p.join(await getDatabasesPath(), 'task_assign.db');
-    return openDatabase(path, version: 13, onUpgrade: (d, oldV, newV) async {
+    return openDatabase(path, version: 14, onUpgrade: (d, oldV, newV) async {
       if (oldV < 5) {
         await d.execute('ALTER TABLE templates ADD COLUMN note TEXT');
       }
@@ -93,6 +93,16 @@ class Db {
           'CREATE TABLE app_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)',
         );
       }
+      if (oldV < 14) {
+        await d.execute(
+            'ALTER TABLE templates ADD COLUMN reminder_preset_id TEXT');
+        await d.execute(
+            'ALTER TABLE task_history ADD COLUMN reminder_preset_id TEXT');
+        await d.execute(
+          "UPDATE templates SET reminder_preset_id = 'evening' "
+          'WHERE is_temporary = 1 AND archived = 0',
+        );
+      }
     }, onCreate: (d, v) async {
       await d.execute('CREATE TABLE staff('
           'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT, phone TEXT, age INTEGER, ordination_date TEXT, '
@@ -109,12 +119,13 @@ class Db {
           'id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, role TEXT, '
           'start_time TEXT, end_time TEXT, leader_id INTEGER, place TEXT, note TEXT, '
           'is_temporary INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0, '
-          'task_date TEXT)');
+          'task_date TEXT, reminder_preset_id TEXT)');
       await d.execute('CREATE TABLE task_history('
           'id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, task_date TEXT, '
           'staff_names TEXT, leader TEXT, place TEXT, message TEXT, created_at TEXT, '
           'start_min INTEGER, end_min INTEGER, note TEXT, leader_id INTEGER, '
-          "preach_dharma INTEGER NOT NULL DEFAULT 0, precepts_type TEXT NOT NULL DEFAULT '')");
+          "preach_dharma INTEGER NOT NULL DEFAULT 0, precepts_type TEXT NOT NULL DEFAULT '', "
+          'reminder_preset_id TEXT)');
       await _createTaskStaff(d);
       await _createTaskPreachers(d);
       await _createTaskPreceptGivers(d);

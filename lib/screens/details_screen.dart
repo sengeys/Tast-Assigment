@@ -7,9 +7,12 @@ import '../core/khmer_lunar.dart';
 import '../core/input_styles.dart';
 import '../core/statuses.dart';
 import '../data/db.dart';
+import '../services/notification_service.dart';
 import '../state/app_state.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/reminder_preset_picker.dart';
 import 'staff_select_screen.dart';
+import 'templates_screen.dart';
 
 // ---------------- 3. Details form ----------------
 class DetailsScreen extends StatelessWidget {
@@ -21,7 +24,85 @@ class DetailsScreen extends StatelessWidget {
     final eligibleLeaders =
         s.leaders.where((leader) => canAttendAsLeader(leader['status']));
     return Scaffold(
-      appBar: AppBar(title: const Text('ពេលវេលា និង ទីតាំង')),
+      appBar: AppBar(
+        title: const Text('ពេលវេលា និង ទីតាំង'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.alarm),
+            tooltip: 'កំណត់ការរំលឹកកម្មវិធី',
+            onPressed: () async {
+              final selectedId = await showReminderPresetPicker(
+                context,
+                selectedId: s.reminderPresetId,
+                allowDefault: true,
+              );
+              if (!context.mounted || selectedId == null) return;
+              final reminderId =
+                  selectedId == useGlobalReminderSetting ? null : selectedId;
+              if (reminderId != null && s.start != null) {
+                final presets =
+                    await NotificationService.instance.loadReminderPresets();
+                if (!context.mounted) return;
+                for (final preset in presets) {
+                  if (preset.id != reminderId) continue;
+                  final eventAt =
+                      DateTime(s.date.year, s.date.month, s.date.day)
+                          .add(Duration(
+                    hours: s.start!.hour,
+                    minutes: s.start!.minute,
+                  ));
+                  if (!preset.scheduledAt(eventAt).isBefore(eventAt)) {
+                    if (context.mounted) {
+                      showSnack(
+                        context,
+                        'ពេលរំលឹកត្រូវតែមុនម៉ោងចាប់ផ្ដើមកម្មវិធី',
+                      );
+                    }
+                    return;
+                  }
+                  break;
+                }
+              }
+              s.update(() => s.reminderPresetId = reminderId);
+            },
+          ),
+          if (s.template != null && s.template!['id'] is int)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'កែគំរូ',
+              onPressed: () async {
+                final template = s.template!;
+                final templateId = template['id'] as int;
+                final saved = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TemplateEditScreen(template: template),
+                  ),
+                );
+                if (!context.mounted || saved != true) return;
+                for (final updatedTemplate in s.templates) {
+                  if (updatedTemplate['id'] == templateId) {
+                    s.startFromTemplate(updatedTemplate);
+                    break;
+                  }
+                }
+              },
+            ),
+          IconButton(
+            icon: const Icon(Icons.bookmark_add_outlined),
+            tooltip: 'រក្សាទុកជាគំរូ',
+            onPressed: () async {
+              final name =
+                  await askText(context, 'ឈ្មោះគំរូ', initial: s.title);
+              if (name == null || name.isEmpty) return;
+              await s.saveAsTemplate(name);
+              if (context.mounted) {
+                showSnack(context, 'បានរក្សាទុកជាគំរូរួចរាល់ ✔');
+              }
+            },
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -90,8 +171,19 @@ class DetailsScreen extends StatelessWidget {
                   onChanged: (v) => s.update(() => s.leaderId = v),
                 ),
               ),
+              SizedBox(
+                width: 12,
+              ),
               IconButton(
-                icon: const Icon(Icons.add_circle_outline),
+                padding: EdgeInsets.all(14),
+                style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadiusGeometry.circular(10),
+                        side: BorderSide(color: Colors.grey.shade400)),
+                    backgroundColor: Color.lerp(
+                        Theme.of(context).primaryColor, Colors.white, 1),
+                    foregroundColor: Colors.grey.shade600),
+                icon: const Icon(Icons.add_circle),
                 onPressed: () async {
                   final n = await askText(context, 'អាចារ្យថ្មី');
                   if (n == null || n.isEmpty) return;
@@ -125,8 +217,21 @@ class DetailsScreen extends StatelessWidget {
                   onChanged: (v) => s.update(() => s.place = v),
                 ),
               ),
+              SizedBox(
+                width: 12,
+              ),
               IconButton(
-                icon: const Icon(Icons.add_circle_outline),
+                padding: EdgeInsets.all(14),
+                style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadiusGeometry.circular(10),
+                        side: BorderSide(color: Colors.grey.shade400)),
+                    backgroundColor: Color.lerp(
+                        Theme.of(context).primaryColor, Colors.white, 1),
+                    foregroundColor: Colors.grey.shade600),
+                icon: const Icon(
+                  Icons.add_circle,
+                ),
                 onPressed: () async {
                   final n = await askText(context, 'ទីតាំងថ្មី');
                   if (n == null || n.isEmpty) return;
@@ -153,20 +258,6 @@ class DetailsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.bookmark_add_outlined),
-            label: const Text('រក្សាទុកជាគំរូ'),
-            onPressed: () async {
-              final name =
-                  await askText(context, 'ឈ្មោះគំរូ', initial: s.title);
-              if (name == null || name.isEmpty) return;
-              await s.saveAsTemplate(name);
-              if (context.mounted) {
-                showSnack(context, 'បានរក្សាទុកជាគំរូរួចរាល់ ✔');
-              }
-            },
-          ),
-          const SizedBox(height: 12),
           FilledButton.icon(
             icon: const Icon(Icons.arrow_forward),
             label: const Text('បន្ទាប់: ជ្រើសរើសព្រះសង្ឃ'),
@@ -183,6 +274,25 @@ class DetailsScreen extends StatelessWidget {
       messenger.showSnackBar(
           const SnackBar(content: Text('សូមកំណត់ម៉ោងចាប់ផ្តើម និងម៉ោងបញ្ចប់')));
       return;
+    }
+    if (s.reminderPresetId != null) {
+      final presets = await NotificationService.instance.loadReminderPresets();
+      if (!context.mounted) return;
+      final preset =
+          presets.where((item) => item.id == s.reminderPresetId).firstOrNull;
+      if (preset != null) {
+        final eventAt = DateTime(s.date.year, s.date.month, s.date.day).add(
+          Duration(hours: s.start!.hour, minutes: s.start!.minute),
+        );
+        if (!preset.scheduledAt(eventAt).isBefore(eventAt)) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('ពេលរំលឹកត្រូវតែមុនម៉ោងចាប់ផ្ដើមកម្មវិធី'),
+            ),
+          );
+          return;
+        }
+      }
     }
     if (s.end!.hour * 60 + s.end!.minute <=
         s.start!.hour * 60 + s.start!.minute) {
@@ -252,7 +362,7 @@ class DetailsScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(10)),
       title: Text(label, style: const TextStyle(fontSize: 12)),
       subtitle: Text(t == null ? '—' : khTime(t),
-          style: const TextStyle(fontSize: 15)),
+          style: const TextStyle(fontSize: 16, color: Color(0xFF19191D))),
       onTap: () async {
         final r = await showTimePicker(
             context: context,

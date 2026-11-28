@@ -4,7 +4,7 @@ const _dropdownMenuDefaultHorizontalInset = 16.0;
 
 const appInputTextStyle = TextStyle(
   color: Color(0xFF19191D),
-  fontSize: 20,
+  fontSize: 16,
   fontWeight: FontWeight.w400,
   letterSpacing: 0.44,
   fontFamily: 'NotoSansKhmer',

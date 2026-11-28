@@ -48,6 +48,7 @@ class AppState extends ChangeNotifier {
   TimeOfDay? start, end;
   int? leaderId;
   String? place;
+  String? reminderPresetId;
 
   Future<void> load() async {
     final savedThemeIndex = await _preferences.getInt(_themeSeedKey);
@@ -143,6 +144,7 @@ class AppState extends ChangeNotifier {
     }
     final pl = (h['place'] ?? '').toString();
     place = pl.isEmpty ? null : pl;
+    reminderPresetId = h['reminder_preset_id']?.toString();
     notifyListeners();
   }
 
@@ -170,6 +172,8 @@ class AppState extends ChangeNotifier {
         ? templateLeaderId as int?
         : null;
     place = t?['place'];
+    reminderPresetId = t?['reminder_preset_id']?.toString() ??
+        (t?['is_temporary'] == 1 ? 'evening' : null);
     notifyListeners();
   }
 
@@ -196,6 +200,7 @@ class AppState extends ChangeNotifier {
       'is_temporary': 0,
       'archived': 0,
       'task_date': DateFormat('yyyy-MM-dd').format(date),
+      'reminder_preset_id': reminderPresetId,
     });
     await load();
   }
@@ -500,6 +505,7 @@ class AppState extends ChangeNotifier {
       'note': note.trim(),
       'start_min': sMin,
       'end_min': eMin,
+      'reminder_preset_id': reminderPresetId,
     };
     final templateId = template?['id'];
     final archiveTemporary = template?['is_temporary'] == 1 &&

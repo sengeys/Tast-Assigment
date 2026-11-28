@@ -9,19 +9,27 @@ import '../core/input_styles.dart';
 import '../core/roles.dart';
 import '../core/statuses.dart';
 import '../data/db.dart';
+import '../services/notification_service.dart';
 import '../state/app_state.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/reminder_preset_picker.dart';
 import 'details_screen.dart';
 
 enum TemplateFilter { temporary, permanent, archived }
 
 enum _TemplateCreationChoice { blank }
 
-enum _TemplateAction { use, edit, delete, select }
+enum _TemplateAction { use, edit, reminder, delete, select }
 
 // ---------------- 1. Templates (គំរូការងារ) ----------------
 List<String> roleOptionsOf(AppState s) =>
     [...roleOrder, ...s.roles.where((x) => !roleOrder.contains(x))];
+
+List<Map<String, dynamic>> _newestFirstTemplates(
+  Iterable<Map<String, dynamic>> templates,
+) =>
+    templates.toList()
+      ..sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
 
 class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({super.key});
@@ -97,6 +105,12 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
               onTap: () => Navigator.pop(sheetContext, _TemplateAction.edit),
             ),
             ListTile(
+              leading: const Icon(Icons.alarm),
+              title: const Text('កំណត់ការរំលឹក'),
+              onTap: () =>
+                  Navigator.pop(sheetContext, _TemplateAction.reminder),
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline),
               title: const Text('លុបគំរូ'),
               onTap: () => Navigator.pop(sheetContext, _TemplateAction.delete),
@@ -117,12 +131,50 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         _useTemplate(state, template);
       case _TemplateAction.edit:
         _editTemplate(template);
+      case _TemplateAction.reminder:
+        await _setTemplateReminder(state, template);
       case _TemplateAction.delete:
         await _deleteTemplates(state, {template['id'] as int},
             templateTitle: (template['title'] ?? '').toString());
       case _TemplateAction.select:
         _toggleTemplateSelection(template);
     }
+  }
+
+  Future<void> _setTemplateReminder(
+    AppState state,
+    Map<String, dynamic> template,
+  ) async {
+    final id = template['id'] as int;
+    final selectedId = await showReminderPresetPicker(
+      context,
+      selectedId: (template['reminder_preset_id'] ?? 'evening').toString(),
+    );
+    if (!mounted || selectedId == null) return;
+
+    final date = DateTime.tryParse((template['task_date'] ?? '').toString());
+    final start = (template['start_time'] ?? '').toString().split(':');
+    final startHour = start.length == 2 ? int.tryParse(start[0]) : null;
+    final startMinute = start.length == 2 ? int.tryParse(start[1]) : null;
+    final preset = (await NotificationService.instance.loadReminderPresets())
+        .where((item) => item.id == selectedId)
+        .firstOrNull;
+    if (!mounted) return;
+    if (date != null &&
+        startHour != null &&
+        startMinute != null &&
+        preset != null) {
+      final eventAt =
+          DateTime(date.year, date.month, date.day, startHour, startMinute);
+      if (!preset.scheduledAt(eventAt).isBefore(eventAt)) {
+        showSnack(context, 'ពេលរំលឹកត្រូវតែមុនម៉ោងចាប់ផ្ដើមកម្មវិធី');
+        return;
+      }
+    }
+
+    await Db.update('templates', id, {'reminder_preset_id': selectedId});
+    await state.load();
+    await NotificationService.instance.rescheduleAll();
   }
 
   Future<void> _deleteTemplates(
@@ -164,6 +216,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
     });
     if (mounted) _cancelSelection();
     await state.load();
+    await NotificationService.instance.rescheduleAll();
   }
 
   String _templateSubtitle(
@@ -191,10 +244,10 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   }
 
   Future<void> _createTemplate(AppState state) async {
-    final permanentTemplates = state.templates
-        .where((template) =>
-            template['is_temporary'] != 1 && template['archived'] != 1)
-        .toList();
+    final permanentTemplates = _newestFirstTemplates(
+      state.templates.where((template) =>
+          template['is_temporary'] != 1 && template['archived'] != 1),
+    );
     Widget pickerTile({
       required IconData icon,
       required String title,
@@ -303,18 +356,20 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
-    final visibleTemplates = s.templates.where((t) {
-      final archived = t['archived'] == 1;
-      final temporary = t['is_temporary'] == 1;
-      switch (filter) {
-        case TemplateFilter.temporary:
-          return temporary && !archived;
-        case TemplateFilter.permanent:
-          return !temporary && !archived;
-        case TemplateFilter.archived:
-          return archived;
-      }
-    }).toList();
+    final visibleTemplates = _newestFirstTemplates(
+      s.templates.where((t) {
+        final archived = t['archived'] == 1;
+        final temporary = t['is_temporary'] == 1;
+        switch (filter) {
+          case TemplateFilter.temporary:
+            return temporary && !archived;
+          case TemplateFilter.permanent:
+            return !temporary && !archived;
+          case TemplateFilter.archived:
+            return archived;
+        }
+      }),
+    );
     String leaderOf(Object? id) {
       for (final l in s.leaders) {
         if (l['id'] == id) return l['name'] as String;
@@ -535,6 +590,7 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
   String? place;
   bool isTemporary = true;
   late DateTime date;
+  String? reminderPresetId;
 
   @override
   void initState() {
@@ -542,6 +598,9 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
     final t = widget.template ?? widget.copyFrom;
     isTemporary =
         widget.template == null || widget.template!['is_temporary'] == 1;
+    reminderPresetId =
+        (t?['reminder_preset_id'] ?? (isTemporary ? 'evening' : null))
+            ?.toString();
     date =
         DateTime.tryParse((t?['task_date'] ?? '').toString()) ?? DateTime.now();
     title = TextEditingController(text: (t?['title'] ?? '').toString());
@@ -573,6 +632,20 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
             leader['id'] == leaderId && canAttendAsLeader(leader['status']))
         ? leaderId
         : null;
+    if (start != null && reminderPresetId != null) {
+      final preset = (await NotificationService.instance.loadReminderPresets())
+          .where((item) => item.id == reminderPresetId)
+          .firstOrNull;
+      if (!mounted) return;
+      if (preset != null) {
+        final eventAt = DateTime(date.year, date.month, date.day)
+            .add(Duration(hours: start!.hour, minutes: start!.minute));
+        if (!preset.scheduledAt(eventAt).isBefore(eventAt)) {
+          showSnack(context, 'ពេលរំលឹកត្រូវតែមុនម៉ោងចាប់ផ្ដើមកម្មវិធី');
+          return;
+        }
+      }
+    }
     final v = <String, Object?>{
       'title': name,
       'role': role,
@@ -584,6 +657,8 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
       'is_temporary': asTemporaryCopy || isTemporary ? 1 : 0,
       'archived': asTemporaryCopy ? 0 : widget.template?['archived'] ?? 0,
       'task_date': DateFormat('yyyy-MM-dd').format(date),
+      'reminder_preset_id': reminderPresetId ??
+          (asTemporaryCopy || isTemporary ? 'evening' : null),
     };
     if (widget.template == null || asTemporaryCopy) {
       await Db.insert('templates', v);
@@ -591,7 +666,18 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
       await Db.update('templates', widget.template!['id'] as int, v);
     }
     await state.load();
-    nav.pop();
+    await NotificationService.instance.rescheduleAll();
+    nav.pop(true);
+  }
+
+  Future<void> _chooseReminderPreset() async {
+    final selectedId = await showReminderPresetPicker(
+      context,
+      selectedId: reminderPresetId,
+    );
+    if (mounted && selectedId != null) {
+      setState(() => reminderPresetId = selectedId);
+    }
   }
 
   Future<void> _addLeader(AppState state) async {
@@ -646,6 +732,11 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
       appBar: AppBar(
         title: Text(widget.template == null ? 'គំរូថ្មី' : 'កែគំរូ'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.alarm),
+            tooltip: 'កំណត់ការរំលឹក',
+            onPressed: _chooseReminderPreset,
+          ),
           IconButton(
               icon: const Icon(Icons.check),
               tooltip: 'រក្សាទុក',

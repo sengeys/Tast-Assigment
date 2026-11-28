@@ -189,8 +189,8 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                                         Text(
                                           (staff['name'] ?? '').toString(),
                                           style: const TextStyle(
-                                            color: Color(0xFF757575),
-                                          ),
+                                              color: Color(0xFF757575),
+                                              fontSize: 16),
                                         ),
                                         if (role.isNotEmpty) ...[
                                           const SizedBox(height: 2),
@@ -340,13 +340,17 @@ class _StaffSelectScreenState extends State<StaffSelectScreen> {
                 context,
                 'បន្ថែមព្រះសង្ឃថ្មី',
                 role: roleFilter ?? '',
+                ordinationDate:
+                    DateTime.now().toIso8601String().split('T').first,
+                status: monkStatuses.first,
                 roleOptions: [
                   ...roleOrder,
                   ...s.roles.where((role) => !roleOrder.contains(role)),
                 ],
                 statusOptions: monkStatuses,
                 isStaff: true,
-                requireOrdinationDate: true,
+                showOrdinationDate: false,
+                showStatus: false,
                 includePhone: false,
               );
               if (value == null) return;

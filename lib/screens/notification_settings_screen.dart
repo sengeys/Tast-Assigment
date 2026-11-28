@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 
+import '../models/reminder_preset.dart';
 import '../core/input_styles.dart';
 import '../services/notification_service.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/reminder_preset_dialog.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -20,6 +22,7 @@ class _NotificationSettingsScreenState
   bool _saving = false;
   bool _enabled = false;
   int _leadMinutes = 15;
+  List<ReminderPreset> _presets = const [];
 
   @override
   void initState() {
@@ -29,12 +32,51 @@ class _NotificationSettingsScreenState
 
   Future<void> _loadSettings() async {
     final settings = await NotificationService.instance.loadSettings();
+    final presets = await NotificationService.instance.loadReminderPresets();
     if (!mounted) return;
     setState(() {
       _enabled = settings.enabled;
       _leadMinutes = settings.leadMinutes;
+      _presets = presets;
       _loading = false;
     });
+  }
+
+  Future<void> _editPreset([ReminderPreset? preset]) async {
+    final updated = await showReminderPresetEditor(context, preset: preset);
+    if (updated == null) return;
+    final presets = [
+      for (final existing in _presets)
+        if (existing.id != updated.id) existing,
+      updated,
+    ];
+    await NotificationService.instance.saveReminderPresets(presets);
+    if (mounted) setState(() => _presets = presets);
+  }
+
+  Future<void> _deletePreset(ReminderPreset preset) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('លុបការរំលឹក "${preset.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('បោះបង់'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('លុប'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await NotificationService.instance.deleteReminderPreset(preset.id);
+    if (mounted) {
+      setState(() => _presets =
+          _presets.where((existing) => existing.id != preset.id).toList());
+    }
   }
 
   Future<void> _setEnabled(bool enabled) async {
@@ -93,7 +135,7 @@ class _NotificationSettingsScreenState
               children: [
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('បើក Notification'),
+                  title: const Text('បើកការជូនដំណឹងទូទៅ'),
                   subtitle: const Text('ជូនដំណឹងមុនពេលចាប់ផ្ដើម និងពេលដល់ម៉ោង'),
                   value: _enabled,
                   onChanged: _saving ? null : _setEnabled,
@@ -129,8 +171,61 @@ class _NotificationSettingsScreenState
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
+                const Divider(height: 32),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('បញ្ជីម៉ោងរំលឹក'),
+                  subtitle: const Text(
+                    'គំរូបណ្ដោះអាសន្នរំលឹកល្ងាចម៉ោង ៧។ បើហួសម៉ោងនេះ '
+                    'កម្មវិធីព្រឹករំលឹកមុន ១ ម៉ោង ហើយកម្មវិធីល្ងាចរំលឹកម៉ោង ៦ ព្រឹក។ '
+                    'អាចជ្រើសម៉ោងទាំងនេះសម្រាប់គំរូ និងកម្មវិធីបាន។',
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'បង្កើតការរំលឹក',
+                    onPressed: () => _editPreset(),
+                    icon: const Icon(Icons.add),
+                  ),
+                ),
+                for (final preset in _presets)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.alarm),
+                    title: Text(preset.name),
+                    subtitle: Text(_presetDescription(preset)),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (action) {
+                        if (action == 'edit') {
+                          _editPreset(preset);
+                        } else {
+                          _deletePreset(preset);
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text('កែប្រែ'),
+                        ),
+                        if (!preset.isBuiltIn)
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('លុប'),
+                          ),
+                      ],
+                    ),
+                  ),
               ],
             ),
     );
+  }
+
+  String _presetDescription(ReminderPreset preset) {
+    if (preset.minutesBefore case final minutes?) {
+      return 'មុនម៉ោងចាប់ផ្ដើម $minutes នាទី';
+    }
+    final time =
+        '${preset.hour.toString().padLeft(2, '0')}:${preset.minute.toString().padLeft(2, '0')}';
+    return preset.daysBefore == 0
+        ? 'ថ្ងៃកម្មវិធី ម៉ោង $time'
+        : 'មុន ${preset.daysBefore} ថ្ងៃ ម៉ោង $time';
   }
 }
