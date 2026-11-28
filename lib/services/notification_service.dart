@@ -527,7 +527,7 @@ class NotificationService {
     if (preset == null && leadMinutes != null) {
       return 'នឹងចាប់ផ្ដើមនៅម៉ោង $time ក្នុង ${kh(leadMinutes)} នាទីទៀត$placeText';
     }
-    return 'សូមត្រៀមសម្រាប់ ${_eventBody(item, eventAt)}';
+    return 'សូមចាត់ព្រះសង្ឃថ្ងៃ ${_eventBody(item, eventAt)}';
   }
 
   Future<void> _scheduleNotification({
