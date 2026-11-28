@@ -708,11 +708,11 @@ class _TemplateEditScreenState extends State<TemplateEditScreen> {
       title: Text(label, style: const TextStyle(fontSize: 12)),
       subtitle: Text(t == null ? '—' : khTime(t),
           style: const TextStyle(fontSize: 16, color: Color(0xFF19191D))),
-      trailing: t == null
-          ? null
-          : IconButton(
-              icon: const Icon(Icons.close, size: 18),
-              onPressed: () => onPick(null)),
+      // trailing: t == null
+      //     ? null
+      //     : IconButton(
+      //         icon: const Icon(Icons.close, size: 18),
+      //         onPressed: () => onPick(null)),
       onTap: () async {
         final r = await showTimePicker(
             context: context,

@@ -241,7 +241,7 @@ class NotificationService {
       'title': record == null
           ? 'Notification'
           : isTemplateReminder
-              ? 'រំលឹកគំរូបណ្ដោះអាសន្ន: ${record['title']}'
+              ? 'រំលឹក! សូមចាត់ចែងព្រះស្ឃ: ${record['title']}'
               : '${isEarlyReminder ? 'ជិតដល់ម៉ោង' : 'ដល់ម៉ោង'}: ${record['title']}',
       'body': details.join(' • '),
       'receivedAt': DateTime.now().toIso8601String(),
@@ -484,7 +484,7 @@ class NotificationService {
       await _scheduleNotification(
         notificationId: 1000000000 + id,
         scheduledAt: reminderAt,
-        title: 'រំលឹកគំរូបណ្ដោះអាសន្ន: ${_displayTitle(item)}',
+        title: 'រំលឹក! សូមចាត់ចែងព្រះស្ឃ: ${_displayTitle(item)}',
         body: _eventBody(item, eventAt),
         payload: 'template:$id',
         scheduleMode: scheduleMode,
@@ -541,8 +541,8 @@ class NotificationService {
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'task_reminders',
-        'ការរំលឹកកម្មវិធី',
-        channelDescription: 'ការរំលឹកមុនម៉ោង និងពេលដល់ម៉ោងកម្មវិធី',
+        'ការរំលឹកទៅបុណ្យ',
+        channelDescription: 'ការរំលឹកមុនម៉ោង និងពេលដល់ម៉ោងទៅបុណ្យ',
         importance: Importance.max,
         priority: Priority.high,
       ),
